@@ -1,58 +1,70 @@
-# Security Policy
+Cibula is a fork of Onion Browser (https://github.com/OnionBrowser/OnionBrowser)
+and is distributed under the terms below.
 
-**English** · [Русский](SECURITY.ru.md) · [Українська](SECURITY.uk.md)
+Unofficial translations of this file exist (LICENSE.ru.txt, LICENSE.uk.txt).
+They are provided for convenience only. In case of any difference, the English
+text in this file prevails.
 
-## Supported versions
+The changes made in Cibula are provided under the same terms as the Onion
+Browser License below (conditions 1 and 2 and the disclaimer).
 
-Only the latest version of Cibula receives fixes. Please update before
-reporting a problem.
+Cibula is not affiliated with, endorsed by or sponsored by Tigas Ventures LLC,
+Mike Tigas, the Onion Browser project, joshua stein or The Tor Project.
 
-## Reporting a vulnerability
+----------------------------------------------------------------------------
 
-Please do **not** open a public issue for security problems.
+Onion Browser (version 2.0 and newer) is based on code from Endless and is
+distributed, with permission, under the terms of the Endless License. The
+Endless License is reproduced in full below the Onion Browser License.
 
-Use GitHub's private reporting instead: open the **Security** tab of this
-repository and choose **Report a vulnerability**.
+Onion Browser
 
-Please include:
+Copyright © 2012-2024, Tigas Ventures LLC
 
-- what the problem is and what an attacker could do with it,
-- steps to reproduce it,
-- your iOS version and device,
-- the Cibula version (Settings, bottom of the screen).
+Redistribution and use in source form, with or without modification,
+and use in binary form, is permitted provided that the following conditions
+are met:
 
-Cibula is maintained by one person in their free time. I will try to answer
-within about a week, but I can't promise a fixed timeline. Reporters who want
-to be credited will be named in the release notes once a fix is out.
+1. Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+2. The name of the author may not be used to endorse or promote products
+derived from this software without specific prior written permission.
 
-## Scope
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
 
-In scope: code and build configuration that is specific to Cibula (interface,
-settings, the build scripts in this repository).
+Endless
 
-Out of scope, please report these upstream:
+Copyright (c) 2014-2019 joshua stein <jcs@jcs.org>
 
-- Problems in the Tor network or the Tor software: The Tor Project
-  (https://www.torproject.org/).
-- Problems that also exist in the original app: Onion Browser
-  (https://github.com/OnionBrowser/OnionBrowser).
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
 
-## Known limitations
+1. Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.
+3. The name of the author may not be used to endorse or promote products
+derived from this software without specific prior written permission.
 
-Please keep these in mind before relying on Cibula:
-
-- Cibula always uses the Tor client that is built into the app. The upstream
-  project warns that this mode has security limitations compared to running
-  Tor through Orbot.
-- Tor on iOS can't offer all the protections of the desktop Tor Browser.
-- Cibula is an unofficial fork and has not been independently audited.
-- Tor does not make you anonymous by itself. What you do on a website still
-  matters (logins, personal details, downloads).
-
-If your safety depends on strong anonymity, use the official Tor Browser.
-
-## Installing safely
-
-Only install builds that you compiled yourself from this repository, or builds
-published in this repository's releases or in the official Telegram channel
-linked in the README. Don't install copies from other sources.
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
