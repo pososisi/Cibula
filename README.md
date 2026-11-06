@@ -33,7 +33,7 @@ Cibula is not on the App Store. The builds are `.ipa` files. iOS does not instal
 
 ## Features
 
-- **Tor only.** The built-in Tor is the single option. No Orbot, no choices to make.
+- **Tor only.** The built-in Tor is the single option.
 - **New look.** Deep purple theme, a new welcome screen and a new "entering the Tor network" screen.
 - **Liquid Glass bars.** The address bar and the toolbar float over the page as rounded glass capsules (real Liquid Glass on iOS 26, frosted glass on older versions).
 - **Merge the bars.** An optional switch puts the address bar and the buttons into one capsule at the bottom, like Safari (Settings, Miscellaneous, needs an app restart).
