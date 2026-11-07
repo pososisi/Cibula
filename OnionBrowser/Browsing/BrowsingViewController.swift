@@ -41,6 +41,9 @@ class BrowsingViewController: UIViewController, TabDelegate {
 	private let edgeGap: CGFloat = 6
 	private let dockBottomGap: CGFloat = 16
 
+	/// Live thumbnails of the tabs for the tab overview.
+	var tabSnapshots = [ObjectIdentifier: UIImage]()
+
 	@IBOutlet weak var searchBar: UIView?
 	@IBOutlet weak var searchBarHeightConstraint: NSLayoutConstraint? {
 		didSet {
@@ -527,6 +530,9 @@ class BrowsingViewController: UIViewController, TabDelegate {
 	{
 		debug("#addNewTab url=\(String(describing: url)), transition=\(transition), completion=\(String(describing: completion))")
 
+		// Remember how the page we are leaving looks like.
+		captureSnapshot()
+
 		let tab = Tab(restorationId: url?.absoluteString, configuration: configuration)
 
 		tab.load(url)
@@ -581,6 +587,8 @@ class BrowsingViewController: UIViewController, TabDelegate {
 			tab.isHidden = true
 			(focus ?? self.tabs.last)?.isHidden = false
 		}) { _ in
+			self.tabSnapshots[ObjectIdentifier(tab)] = nil
+
 			tab.close()
 			self.tabs.removeAll { $0 == tab }
 
@@ -636,6 +644,8 @@ class BrowsingViewController: UIViewController, TabDelegate {
 			return
 		}
 
+		captureSnapshot()
+
 		let focussing = tabs[index]
 
 		container?.transition({
@@ -664,6 +674,7 @@ class BrowsingViewController: UIViewController, TabDelegate {
 		}
 
 		tabs.removeAll()
+		tabSnapshots.removeAll()
 
 		currentTab = nil
 
@@ -681,6 +692,30 @@ class BrowsingViewController: UIViewController, TabDelegate {
 
 	func debug(_ msg: String) {
 		Log.debug(for: Self.self, msg)
+	}
+
+	/**
+	Takes a picture of the page which is showing right now, for the tab overview.
+	Only works while the page is visible, so it is called before the page goes away.
+	*/
+	func captureSnapshot() {
+		guard let container = container,
+			  !container.isHidden,
+			  container.bounds.width > 0,
+			  container.bounds.height > 0,
+			  let tab = currentTab
+		else {
+			return
+		}
+
+		let format = UIGraphicsImageRendererFormat()
+		format.scale = 1.5
+
+		let renderer = UIGraphicsImageRenderer(size: container.bounds.size, format: format)
+
+		tabSnapshots[ObjectIdentifier(tab)] = renderer.image { _ in
+			container.drawHierarchy(in: container.bounds, afterScreenUpdates: false)
+		}
 	}
 
 	/**
@@ -731,6 +766,13 @@ class BrowsingViewController: UIViewController, TabDelegate {
 
 		merged = isPhone && toolbar != nil && UserDefaults.standard.bool(forKey: Self.mergedBarsKey)
 		floating = isPhone && searchBar != nil && toolbar != nil && container != nil
+
+		// The extra safe area we add for the page must not squeeze the content of the bars.
+		let marginViews: [UIView?] = [searchBar, toolbar, mainTools, tabsTools]
+
+		for item in marginViews {
+			item?.insetsLayoutMarginsFromSafeArea = false
+		}
 
 		addBackdrop()
 
@@ -977,8 +1019,7 @@ class BrowsingViewController: UIViewController, TabDelegate {
 		glass.layer.borderWidth = 0.5
 		glass.layer.borderColor = UIColor(red: 0.85, green: 0.70, blue: 1, alpha: 0.35).cgColor
 
-		// Dark purple layer on top of the glass. Without it the glass turns light over
-		// white pages and the light icons disappear.
+		// Dark purple layer on top of the glass, so the light icons stay readable on white pages.
 		glass.contentView.backgroundColor = UIColor(red: 0.16, green: 0.05, blue: 0.30, alpha: 0.58)
 
 		bar.insertSubview(glass, at: 0)
