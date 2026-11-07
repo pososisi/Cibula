@@ -35,11 +35,45 @@ class SettingsViewController: FixedFormViewController {
 	}
 
 	override func viewDidLoad() {
+		// Rounded, inset sections instead of the flat grouped list.
+		let table = UITableView(frame: view.bounds, style: .insetGrouped)
+		table.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+		tableView = table
+
 		super.viewDidLoad()
 
-		navigationItem.leftBarButtonItem = UIBarButtonItem(
-			barButtonSystemItem: .done, target: self, action: #selector(dismsiss_))
+		navigationItem.rightBarButtonItem = UIBarButtonItem(
+			title: CibulaL10n.tr("Done", "Готово", "Готово"),
+			style: .done, target: self, action: #selector(dismsiss_))
 		navigationItem.title = NSLocalizedString("Settings", comment: "Scene title")
+
+		form
+		+++ Section(header: CibulaL10n.tr("Language", "Язык", "Мова"),
+					footer: CibulaL10n.tr("Takes effect after restarting the app.",
+										  "Вступит в силу после перезапуска приложения.",
+										  "Набуде чинності після перезапуску застосунку."))
+
+		<<< PushRow<String>() {
+			$0.title = CibulaL10n.tr("App Language", "Язык приложения", "Мова застосунку")
+			$0.selectorTitle = $0.title
+			$0.options = ["system", "en", "ru", "uk"]
+			$0.value = CibulaL10n.chosen
+			$0.displayValueFor = { code in
+				CibulaL10n.languageName(code ?? "system")
+			}
+			$0.cell.textLabel?.numberOfLines = 0
+		}
+		.onChange { [weak self] row in
+			let code = row.value ?? "system"
+
+			if code == CibulaL10n.chosen {
+				return
+			}
+
+			CibulaL10n.choose(code)
+
+			self?.askForRestart()
+		}
 
 		form
 		+++ defaultSecurityRow
@@ -253,15 +287,23 @@ class SettingsViewController: FixedFormViewController {
 		}
 
 		<<< SwitchRow() {
-			$0.title = (Locale.preferredLanguages.first ?? "").hasPrefix("ru")
-				? "Объединить панели, как в Safari"
-				: "Merge bars like Safari"
+			$0.title = CibulaL10n.tr("Merge bars like Safari",
+									 "Объединить панели, как в Safari",
+									 "Об'єднати панелі, як у Safari")
 			$0.value = UserDefaults.standard.bool(forKey: BrowsingViewController.mergedBarsKey)
 			$0.cell.switchControl.onTintColor = .accent
 			$0.cell.textLabel?.numberOfLines = 0
 		}
-		.onChange { row in
-			UserDefaults.standard.set(row.value ?? false, forKey: BrowsingViewController.mergedBarsKey)
+		.onChange { [weak self] row in
+			let value = row.value ?? false
+
+			if value == UserDefaults.standard.bool(forKey: BrowsingViewController.mergedBarsKey) {
+				return
+			}
+
+			UserDefaults.standard.set(value, forKey: BrowsingViewController.mergedBarsKey)
+
+			self?.askForRestart()
 		}
 
 		// Last section: only "About" and the version. No header.
@@ -301,6 +343,21 @@ class SettingsViewController: FixedFormViewController {
 			SecurityViewController(), animated: true)
 	}
 
+	private func askForRestart() {
+		let alert = UIAlertController(
+			title: CibulaL10n.tr("Restart required",
+								 "Требуется перезапуск",
+								 "Потрібен перезапуск"),
+			message: CibulaL10n.tr("Close the app completely and open it again to apply the change.",
+								   "Полностью закройте приложение и откройте его снова, чтобы изменение вступило в силу.",
+								   "Повністю закрийте застосунок і відкрийте його знову, щоб зміна набула чинності."),
+			preferredStyle: .alert)
+
+		alert.addAction(UIAlertAction(title: "OK", style: .default))
+
+		present(alert, animated: true)
+	}
+
 	@objc private func dismsiss_() {
 		navigationController?.dismiss(animated: true)
 	}
@@ -325,7 +382,7 @@ class CibulaAboutViewController: UIViewController {
 		super.viewDidLoad()
 
 		overrideUserInterfaceStyle = .dark
-		title = tr("О приложении", "About")
+		title = tr("About", "О приложении", "Про застосунок")
 
 		gradient.colors = [color(0x0D0019).cgColor, color(0x2A0A52).cgColor, color(0x5B13A8).cgColor]
 		gradient.startPoint = CGPoint(x: 0.2, y: 0)
@@ -359,41 +416,46 @@ class CibulaAboutViewController: UIViewController {
 		titleLabel.textAlignment = .center
 
 		let versionLabel = UILabel()
-		versionLabel.text = tr("Версия", "Version") + " " + Bundle.main.version
+		versionLabel.text = tr("Version", "Версия", "Версія") + " " + Bundle.main.version
 		versionLabel.font = .monospacedDigitSystemFont(ofSize: 14, weight: .medium)
 		versionLabel.textColor = lilac
 		versionLabel.textAlignment = .center
 
 		let taglineLabel = UILabel()
-		taglineLabel.text = tr("Приватный браузер на базе Tor — слой за слоем, без следов.",
-							   "A private browser built on Tor — layer by layer, no traces.")
+		taglineLabel.text = tr("A private browser built on Tor — layer by layer, no traces.",
+							   "Приватный браузер на базе Tor — слой за слоем, без следов.",
+							   "Приватний браузер на основі Tor — шар за шаром, без слідів.")
 		taglineLabel.font = .systemFont(ofSize: 17, weight: .semibold)
 		taglineLabel.textColor = .white
 		taglineLabel.textAlignment = .center
 		taglineLabel.numberOfLines = 0
 
 		let free = card("gift.fill",
-						tr("Абсолютно бесплатно", "Completely free"),
-						tr("Никаких подписок, рекламы и скрытых платежей.",
-						   "No subscriptions, no ads, no hidden payments."))
+						tr("Completely free", "Абсолютно бесплатно", "Абсолютно безкоштовно"),
+						tr("No subscriptions, no ads, no hidden payments.",
+						   "Никаких подписок, рекламы и скрытых платежей.",
+						   "Жодних підписок, реклами та прихованих платежів."))
 
 		let design = card("paintbrush.fill",
-						  tr("Улучшенный дизайн", "Better design"),
-						  tr("Тёмно-фиолетовая тема, стеклянные панели и вкладки в стиле Safari.",
-							 "A deep purple theme, glass bars and Safari-style tabs."))
+						  tr("Better design", "Улучшенный дизайн", "Покращений дизайн"),
+						  tr("A deep purple theme, glass bars and Safari-style tabs.",
+							 "Тёмно-фиолетовая тема, стеклянные панели и вкладки в стиле Safari.",
+							 "Темно-фіолетова тема, скляні панелі та вкладки в стилі Safari."))
 
 		let clean = card("sparkles",
-						 tr("Без лишнего хлама", "No clutter"),
-						 tr("Убрано всё, что отвлекает. Весь трафик идёт через встроенный Tor, без дополнительных настроек.",
-							"Everything distracting is gone. All traffic goes through the built-in Tor, no extra setup."))
+						 tr("No clutter", "Без лишнего хлама", "Без зайвого мотлоху"),
+						 tr("Everything distracting is gone. All traffic goes through the built-in Tor, no extra setup.",
+							"Убрано всё, что отвлекает. Весь трафик идёт через встроенный Tor, без дополнительных настроек.",
+							"Прибрано все, що відволікає. Увесь трафік іде через вбудований Tor, без додаткових налаштувань."))
 
 		// The name of the original project is built from parts on purpose,
 		// so the build script which renames the app doesn't touch it.
 		let original = "Onion" + " " + "Browser"
 
 		let footer = UILabel()
-		footer.text = tr("Основано на открытом проекте \(original).",
-						 "Based on the open source project \(original).")
+		footer.text = tr("Cibula is a fork of the open source project \(original).",
+						 "Cibula — форк открытого проекта \(original).",
+						 "Cibula — форк відкритого проєкту \(original).")
 		footer.font = .systemFont(ofSize: 13, weight: .regular)
 		footer.textColor = UIColor.white.withAlphaComponent(0.5)
 		footer.textAlignment = .center
@@ -482,8 +544,8 @@ class CibulaAboutViewController: UIViewController {
 		return box
 	}
 
-	private func tr(_ ru: String, _ en: String) -> String {
-		(Locale.preferredLanguages.first ?? "").hasPrefix("ru") ? ru : en
+	private func tr(_ en: String, _ ru: String, _ uk: String) -> String {
+		CibulaL10n.tr(en, ru, uk)
 	}
 
 	private func color(_ hex: UInt32) -> UIColor {
