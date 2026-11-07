@@ -47,15 +47,18 @@ class WelcomeViewController: UIViewController {
 		titleLabel.textAlignment = .center
 
 		let taglineLabel = UILabel()
-		taglineLabel.text = tr("Слой за слоем — вас не видно.", "Layer by layer, you disappear.")
+		taglineLabel.text = tr("Layer by layer, you disappear.",
+							   "Слой за слоем — вас не видно.",
+							   "Шар за шаром — вас не видно.")
 		taglineLabel.font = .systemFont(ofSize: 21, weight: .semibold)
 		taglineLabel.textColor = Self.color(0xD2B0FF)
 		taglineLabel.textAlignment = .center
 		taglineLabel.numberOfLines = 0
 
 		let bodyLabel = UILabel()
-		bodyLabel.text = tr("Весь трафик идёт через Tor. Никакой слежки и никаких следов — только вы и открытая сеть.",
-							"All your traffic travels through Tor. No tracking, no traces — just you and the open web.")
+		bodyLabel.text = tr("All your traffic travels through Tor. No tracking, no traces — just you and the open web.",
+							"Весь трафик идёт через Tor. Никакой слежки и никаких следов — только вы и открытая сеть.",
+							"Увесь трафік іде через Tor. Жодного стеження і жодних слідів — лише ви та відкрита мережа.")
 		bodyLabel.font = .systemFont(ofSize: 16, weight: .regular)
 		bodyLabel.textColor = UIColor.white.withAlphaComponent(0.75)
 		bodyLabel.textAlignment = .center
@@ -68,7 +71,7 @@ class WelcomeViewController: UIViewController {
 		stack.translatesAutoresizingMaskIntoConstraints = false
 
 		var config = UIButton.Configuration.filled()
-		config.title = tr("Поехали", "Let's go")
+		config.title = tr("Let's go", "Поехали", "Поїхали")
 		config.baseBackgroundColor = Self.color(0x8B2CF5)
 		config.baseForegroundColor = .white
 		config.cornerStyle = .large
@@ -129,8 +132,8 @@ class WelcomeViewController: UIViewController {
 
 	// MARK: Private Methods
 
-	private func tr(_ ru: String, _ en: String) -> String {
-		(Locale.preferredLanguages.first ?? "").hasPrefix("ru") ? ru : en
+	private func tr(_ en: String, _ ru: String, _ uk: String) -> String {
+		CibulaL10n.tr(en, ru, uk)
 	}
 
 	private static func color(_ hex: UInt32) -> UIColor {
