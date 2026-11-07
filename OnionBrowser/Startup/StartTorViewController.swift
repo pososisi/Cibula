@@ -49,7 +49,7 @@ class StartTorViewController: UIViewController, BridgesConfDelegate {
 
 		ringsView.translatesAutoresizingMaskIntoConstraints = false
 
-		headline.text = tr("Заходим в сеть Tor…", "Entering the Tor network…")
+		headline.text = enteringText
 		headline.font = .systemFont(ofSize: 28, weight: .heavy)
 		headline.textColor = .white
 		headline.textAlignment = .center
@@ -79,7 +79,7 @@ class StartTorViewController: UIViewController, BridgesConfDelegate {
 		content.translatesAutoresizingMaskIntoConstraints = false
 
 		var retryConfig = UIButton.Configuration.filled()
-		retryConfig.title = tr("Повторить", "Retry")
+		retryConfig.title = tr("Retry", "Повторить", "Повторити")
 		retryConfig.baseBackgroundColor = Self.color(0x8B2CF5)
 		retryConfig.baseForegroundColor = .white
 		retryConfig.cornerStyle = .large
@@ -89,7 +89,7 @@ class StartTorViewController: UIViewController, BridgesConfDelegate {
 		retryButton.isHidden = true
 
 		var bridgesConfig = UIButton.Configuration.tinted()
-		bridgesConfig.title = tr("Настроить мосты", "Configure Bridges")
+		bridgesConfig.title = tr("Configure Bridges", "Настроить мосты", "Налаштувати мости")
 		bridgesConfig.baseBackgroundColor = Self.color(0xC58BFF)
 		bridgesConfig.baseForegroundColor = Self.color(0xE6D2FF)
 		bridgesConfig.cornerStyle = .large
@@ -177,7 +177,7 @@ class StartTorViewController: UIViewController, BridgesConfDelegate {
 	func retry() {
 		ringsView.start()
 		retryButton.isHidden = true
-		headline.text = tr("Заходим в сеть Tor…", "Entering the Tor network…")
+		headline.text = enteringText
 		progressBar.progress = 0
 		percentLabel.text = "0%"
 		statusLabel.isHidden = true
@@ -209,7 +209,7 @@ class StartTorViewController: UIViewController, BridgesConfDelegate {
 				guard error == nil else {
 					self?.ringsView.stop()
 					self?.retryButton.isHidden = false
-					self?.headline.text = self?.tr("Не удалось подключиться", "Couldn't connect")
+					self?.headline.text = self?.tr("Couldn't connect", "Не удалось подключиться", "Не вдалося підключитися")
 					self?.statusLabel.text = (error ?? TorManager.Errors.noSocksAddr).localizedDescription
 					self?.statusLabel.textColor = Self.color(0xFF7A7A)
 					self?.statusLabel.isHidden = false
@@ -239,8 +239,12 @@ class StartTorViewController: UIViewController, BridgesConfDelegate {
 
 	// MARK: Private Methods
 
-	private func tr(_ ru: String, _ en: String) -> String {
-		(Locale.preferredLanguages.first ?? "").hasPrefix("ru") ? ru : en
+	private var enteringText: String {
+		tr("Entering the Tor network…", "Заходим в сеть Tor…", "Заходимо в мережу Tor…")
+	}
+
+	private func tr(_ en: String, _ ru: String, _ uk: String) -> String {
+		CibulaL10n.tr(en, ru, uk)
 	}
 
 	private static func color(_ hex: UInt32) -> UIColor {
