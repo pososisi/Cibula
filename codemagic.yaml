@@ -25,6 +25,61 @@ workflows:
         script: |
           find . -iname "*launch*" -not -path "./Pods/*" -not -path "./build/*" -not -path "./.git/*" | head -n 20
           grep -n -i "launch" Resources/Info.plist 2>/dev/null | head -n 10 || true
+      - name: Fix app icon
+        script: |
+          cat > /tmp/fixicon.py <<'PY'
+          import json, os, sys
+
+          icon = sys.argv[1]
+
+          SVG = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+            <g fill="none" stroke="#C58BFF" stroke-width="56">
+              <circle cx="512" cy="512" r="380" opacity="0.45"/>
+              <circle cx="512" cy="512" r="270" opacity="0.7"/>
+              <circle cx="512" cy="512" r="160" opacity="0.95"/>
+            </g>
+            <circle cx="512" cy="512" r="70" fill="#8B2CF5"/>
+          </svg>
+          '''
+
+          try:
+              with open(os.path.join(icon, 'icon.json')) as f:
+                  data = json.load(f)
+          except Exception as e:
+              print('Could not read icon.json:', e)
+              sys.exit(0)
+
+          names = set()
+
+          def walk(x):
+              if isinstance(x, dict):
+                  for key, value in x.items():
+                      if key == 'image-name' and isinstance(value, str):
+                          names.add(value)
+                      else:
+                          walk(value)
+              elif isinstance(x, list):
+                  for value in x:
+                      walk(value)
+
+          walk(data)
+
+          for name in sorted(names):
+              path = os.path.join(icon, 'Assets', name)
+              if not os.path.exists(path):
+                  os.makedirs(os.path.dirname(path), exist_ok=True)
+                  with open(path, 'w') as f:
+                      f.write(SVG)
+                  print('Created missing layer image:', path)
+              else:
+                  print('Layer image ok:', path)
+          PY
+          find . -type d -name "*.icon" -not -path "./Pods/*" -not -path "./build/*" -not -path "./.git/*" -print0 \
+            | while IFS= read -r -d '' d; do
+                echo "Icon bundle: $d"
+                ls -R "$d" | head -n 20
+                python3 /tmp/fixicon.py "$d"
+              done
       - name: Purple accent colors
         script: |
           write_color () {
