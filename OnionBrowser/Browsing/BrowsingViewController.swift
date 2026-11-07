@@ -755,10 +755,6 @@ class BrowsingViewController: UIViewController, TabDelegate {
 			hideHairlines(in: sb)
 			hideHairlines(in: tb)
 
-			if let progress = progress {
-				view.bringSubviewToFront(progress)
-			}
-
 			if !merged {
 				view.bringSubviewToFront(sb)
 			}
@@ -768,6 +764,14 @@ class BrowsingViewController: UIViewController, TabDelegate {
 		else if let sb = searchBar {
 			sb.backgroundColor = .clear
 			sb.overrideUserInterfaceStyle = .dark
+		}
+
+		// The loading line sits inside the top edge of the panel.
+		if let progress = progress {
+			progress.progressTintColor = UIColor(red: 0.77, green: 0.55, blue: 1, alpha: 1)
+			progress.trackTintColor = UIColor.white.withAlphaComponent(0.12)
+			progress.layer.cornerRadius = 2
+			progress.clipsToBounds = true
 		}
 
 		searchBar?.tintColor = lilac
@@ -856,6 +860,7 @@ class BrowsingViewController: UIViewController, TabDelegate {
 	/**
 	Lets go of the old vertical chain (top bar - page - bottom bar) and builds a new one:
 	the page fills the whole screen, the bars float above it.
+	The loading line moves into the top edge of the top bar (or of the shared bottom bar).
 	*/
 	private func rebuildVerticalLayout() {
 		guard let sb = searchBar, let tb = toolbar, let ct = container else {
@@ -884,15 +889,26 @@ class BrowsingViewController: UIViewController, TabDelegate {
 			toolbarBottom
 		])
 
-		if merged {
-			progress?.bottomAnchor.constraint(equalTo: tb.topAnchor, constant: -6).isActive = true
-		}
-		else {
+		if !merged {
 			let top = sb.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: edgeGap)
 			topBarTopConstraint = top
 			top.isActive = true
+		}
 
-			progress?.topAnchor.constraint(equalTo: sb.bottomAnchor, constant: 4).isActive = true
+		if let progress = progress {
+			let host: UIView = merged ? tb : sb
+
+			// Moving it into the bar drops all its old constraints to the screen.
+			progress.removeFromSuperview()
+			host.addSubview(progress)
+			progress.translatesAutoresizingMaskIntoConstraints = false
+
+			NSLayoutConstraint.activate([
+				progress.leadingAnchor.constraint(equalTo: host.leadingAnchor, constant: 26),
+				progress.trailingAnchor.constraint(equalTo: host.trailingAnchor, constant: -26),
+				progress.topAnchor.constraint(equalTo: host.topAnchor, constant: 3),
+				progress.heightAnchor.constraint(equalToConstant: 4)
+			])
 		}
 	}
 
@@ -961,8 +977,9 @@ class BrowsingViewController: UIViewController, TabDelegate {
 		glass.layer.borderWidth = 0.5
 		glass.layer.borderColor = UIColor(red: 0.85, green: 0.70, blue: 1, alpha: 0.35).cgColor
 
-		// Light purple tint on top of the glass.
-		glass.contentView.backgroundColor = UIColor(red: 0.30, green: 0.08, blue: 0.55, alpha: 0.20)
+		// Dark purple layer on top of the glass. Without it the glass turns light over
+		// white pages and the light icons disappear.
+		glass.contentView.backgroundColor = UIColor(red: 0.16, green: 0.05, blue: 0.30, alpha: 0.58)
 
 		bar.insertSubview(glass, at: 0)
 	}
@@ -1086,6 +1103,85 @@ class BrowsingViewController: UIViewController, TabDelegate {
 		else {
 			reloadBt.setImage(BrowsingViewController.reloadImg, for: .normal)
 			reloadBt.imageEdgeInsets = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
+		}
+	}
+}
+
+
+/**
+Languages of the app: English, Russian and Ukrainian.
+The language of the system is used, unless the user picked one in the settings.
+*/
+enum CibulaL10n {
+
+	/// "system", "en", "ru" or "uk".
+	static let languageKey = "CibulaLanguage"
+
+	static var chosen: String {
+		UserDefaults.standard.string(forKey: languageKey) ?? "system"
+	}
+
+	/// The language which is actually used: "en", "ru" or "uk".
+	static var code: String {
+		let saved = chosen
+
+		if saved == "en" || saved == "ru" || saved == "uk" {
+			return saved
+		}
+
+		let first = Locale.preferredLanguages.first ?? "en"
+
+		if first.hasPrefix("uk") {
+			return "uk"
+		}
+
+		if first.hasPrefix("ru") {
+			return "ru"
+		}
+
+		return "en"
+	}
+
+	static func tr(_ en: String, _ ru: String, _ uk: String) -> String {
+		switch code {
+		case "ru":
+			return ru
+
+		case "uk":
+			return uk
+
+		default:
+			return en
+		}
+	}
+
+	static func languageName(_ code: String) -> String {
+		switch code {
+		case "en":
+			return "English"
+
+		case "ru":
+			return "Русский"
+
+		case "uk":
+			return "Українська"
+
+		default:
+			return tr("System", "Системный", "Системна")
+		}
+	}
+
+	/// Remembers the choice. The texts of the system parts need a restart of the app.
+	static func choose(_ code: String) {
+		let defaults = UserDefaults.standard
+
+		defaults.set(code, forKey: languageKey)
+
+		if code == "system" {
+			defaults.removeObject(forKey: "AppleLanguages")
+		}
+		else {
+			defaults.set([code], forKey: "AppleLanguages")
 		}
 	}
 }
