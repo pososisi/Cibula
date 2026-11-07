@@ -27,12 +27,27 @@ workflows:
           grep -n -i "launch" Resources/Info.plist 2>/dev/null | head -n 10 || true
       - name: Fix app icon
         script: |
-          cat > /tmp/fixicon.py <<'PY'
-          import json, os, sys
+          cat > /tmp/mkicon.py <<'PY'
+          import json, math, os, struct, sys, zlib
 
           icon = sys.argv[1]
+          mode = sys.argv[2] if len(sys.argv) > 2 else "full"
 
-          SVG = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+          SIZE = 1024
+          CX = CY = 512.0
+
+          # Dark purple background, rings dim outside and bright inside, purple core.
+          RINGS = [
+              (440.0, 22.0, (106, 63, 160)),
+              (345.0, 22.0, (138, 96, 196)),
+              (250.0, 22.0, (166, 122, 232)),
+              (160.0, 22.0, (190, 150, 255)),
+          ]
+          CORE_R = 84.0
+          CORE_TOP = (95, 40, 200)
+          CORE_BOTTOM = (127, 48, 252)
+
+          PLACEHOLDER_SVG = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
             <g fill="none" stroke="#C58BFF" stroke-width="56">
               <circle cx="512" cy="512" r="380" opacity="0.45"/>
               <circle cx="512" cy="512" r="270" opacity="0.7"/>
@@ -42,43 +57,135 @@ workflows:
           </svg>
           '''
 
-          try:
-              with open(os.path.join(icon, 'icon.json')) as f:
-                  data = json.load(f)
-          except Exception as e:
-              print('Could not read icon.json:', e)
-              sys.exit(0)
 
-          names = set()
+          def clamp(v, lo=0.0, hi=1.0):
+              return lo if v < lo else hi if v > hi else v
 
-          def walk(x):
+
+          def write_png(path):
+              rows = []
+
+              for y in range(SIZE):
+                  row = bytearray([0])
+                  dy = y + 0.5 - CY
+
+                  for x in range(SIZE):
+                      dx = x + 0.5 - CX
+                      d = math.hypot(dx, dy)
+                      r = g = b = 0
+                      a = 0.0
+
+                      if d <= CORE_R + 1.0:
+                          cov = clamp(CORE_R + 0.5 - d)
+                          t = clamp((y + 0.5 - (CY - CORE_R)) / (2 * CORE_R))
+                          r = int(CORE_TOP[0] + (CORE_BOTTOM[0] - CORE_TOP[0]) * t)
+                          g = int(CORE_TOP[1] + (CORE_BOTTOM[1] - CORE_TOP[1]) * t)
+                          b = int(CORE_TOP[2] + (CORE_BOTTOM[2] - CORE_TOP[2]) * t)
+                          a = cov
+                      else:
+                          for radius, width, color in RINGS:
+                              off = abs(d - radius)
+
+                              if off <= width / 2 + 1.0:
+                                  cov = clamp(width / 2 + 0.5 - off)
+
+                                  if cov > a:
+                                      a = cov
+                                      r, g, b = color
+
+                      row += bytes((r, g, b, int(a * 255 + 0.5)))
+
+                  rows.append(bytes(row))
+
+              raw = b"".join(rows)
+
+              def chunk(tag, data):
+                  body = tag + data
+                  return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
+
+              png = b"\x89PNG\r\n\x1a\n"
+              png += chunk(b"IHDR", struct.pack(">IIBBBBB", SIZE, SIZE, 8, 6, 0, 0, 0))
+              png += chunk(b"IDAT", zlib.compress(raw, 9))
+              png += chunk(b"IEND", b"")
+
+              with open(path, "wb") as f:
+                  f.write(png)
+
+
+          def load_json():
+              try:
+                  with open(os.path.join(icon, "icon.json")) as f:
+                      return json.load(f)
+              except Exception as e:
+                  print("Could not read icon.json:", e)
+                  return None
+
+
+          def layer_names(x, names):
               if isinstance(x, dict):
                   for key, value in x.items():
-                      if key == 'image-name' and isinstance(value, str):
+                      if key == "image-name" and isinstance(value, str):
                           names.add(value)
                       else:
-                          walk(value)
+                          layer_names(value, names)
               elif isinstance(x, list):
                   for value in x:
-                      walk(value)
+                      layer_names(value, names)
 
-          walk(data)
 
-          for name in sorted(names):
-              path = os.path.join(icon, 'Assets', name)
-              if not os.path.exists(path):
-                  os.makedirs(os.path.dirname(path), exist_ok=True)
-                  with open(path, 'w') as f:
-                      f.write(SVG)
-                  print('Created missing layer image:', path)
-              else:
-                  print('Layer image ok:', path)
+          assets = os.path.join(icon, "Assets")
+          os.makedirs(assets, exist_ok=True)
+
+          if mode == "minimal":
+              # Only make sure that every layer image exists.
+              data = load_json()
+
+              if data is not None:
+                  names = set()
+                  layer_names(data, names)
+
+                  for name in sorted(names):
+                      path = os.path.join(assets, name)
+
+                      if not os.path.exists(path):
+                          os.makedirs(os.path.dirname(path), exist_ok=True)
+
+                          with open(path, "w") as f:
+                              f.write(PLACEHOLDER_SVG)
+
+                          print("Created missing layer image:", path)
+          else:
+              # Own icon: dark purple background, one layer with the rings.
+              write_png(os.path.join(assets, "cibula-rings.png"))
+
+              data = load_json() or {}
+              data["fill"] = {"solid": "srgb:0.10196,0.01176,0.22745,1.00000"}
+              data.pop("fill-specializations", None)
+              data["groups"] = [{
+                  "layers": [{"image-name": "cibula-rings.png", "name": "cibula-rings"}],
+                  "shadow": {"kind": "neutral", "opacity": 0.5},
+                  "translucency": {"enabled": False, "value": 0.5},
+              }]
+
+              if "supported-platforms" not in data:
+                  data["supported-platforms"] = {"circles": ["watchOS"], "squares": "shared"}
+
+              with open(os.path.join(icon, "icon.json"), "w") as f:
+                  json.dump(data, f, indent=2)
+
+              print("Cibula icon written:", icon)
           PY
+          : > /tmp/icon_list.txt
+          mkdir -p /tmp/icon_backup
+          N=0
           find . -type d -name "*.icon" -not -path "./Pods/*" -not -path "./build/*" -not -path "./.git/*" -print0 \
             | while IFS= read -r -d '' d; do
+                N=$((N+1))
                 echo "Icon bundle: $d"
                 ls -R "$d" | head -n 20
-                python3 /tmp/fixicon.py "$d"
+                cp -R "$d" "/tmp/icon_backup/$(basename "$d").$N"
+                echo "$d|/tmp/icon_backup/$(basename "$d").$N" >> /tmp/icon_list.txt
+                python3 /tmp/mkicon.py "$d" full
               done
       - name: Purple accent colors
         script: |
@@ -110,18 +217,32 @@ workflows:
           [ "$FOUND" = "0" ] && echo "No accent colorsets found" || true
       - name: Build unsigned app
         script: |
-          xcodebuild -quiet \
-            -workspace OnionBrowser.xcworkspace \
-            -scheme OnionBrowser \
-            -configuration Release \
-            -sdk iphoneos \
-            -destination 'generic/platform=iOS' \
-            -derivedDataPath build \
-            -skipPackagePluginValidation -skipMacroValidation \
-            MARKETING_VERSION=1.0 CURRENT_PROJECT_VERSION=1 \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-            build > build.log 2>&1
+          run_build () {
+            xcodebuild -quiet \
+              -workspace OnionBrowser.xcworkspace \
+              -scheme OnionBrowser \
+              -configuration Release \
+              -sdk iphoneos \
+              -destination 'generic/platform=iOS' \
+              -derivedDataPath build \
+              -skipPackagePluginValidation -skipMacroValidation \
+              MARKETING_VERSION=1.0 CURRENT_PROJECT_VERSION=1 \
+              CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+              build > build.log 2>&1
+          }
+          run_build
           STATUS=$?
+          if [ $STATUS -ne 0 ] && grep -q -i "actool" build.log; then
+            echo "Build failed in the asset compiler, retrying with the safe icon fix"
+            while IFS='|' read -r d b; do
+              [ -n "$d" ] || continue
+              rm -rf "$d"
+              cp -R "$b" "$d"
+              python3 /tmp/mkicon.py "$d" minimal
+            done < /tmp/icon_list.txt
+            run_build
+            STATUS=$?
+          fi
           if [ $STATUS -ne 0 ]; then
             echo "===== ERRORS ====="
             grep -n -E "error:|BUILD FAILED" build.log | head -n 20
