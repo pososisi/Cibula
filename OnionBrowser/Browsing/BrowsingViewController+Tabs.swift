@@ -32,7 +32,7 @@ UICollectionViewDropDelegate, TabCellDelegate {
 			ratio = c.bounds.height / c.bounds.width
 		}
 
-		ratio = min(max(ratio, 1.2), 1.75)
+		ratio = min(max(ratio, 1.2), 2.2)
 
 		return CGSize(width: width, height: width * ratio + 24 /* header height */)
 	}
@@ -46,6 +46,9 @@ UICollectionViewDropDelegate, TabCellDelegate {
 
 	@objc func showOverview() {
 		unfocusSearchField()
+
+		// The page is still visible here, so this is the moment to take its picture.
+		captureSnapshot()
 
 		// Reset before showing the overview. Would become cumbersome,
 		// if we'd call everywhere, where a tab might change.
@@ -130,9 +133,14 @@ UICollectionViewDropDelegate, TabCellDelegate {
 					: UIColor(red: 0.10, green: 0.03, blue: 0.20, alpha: 0.6)
 				cell.setName(displayName(for: tab))
 
-				var size = cellSize
-				size.height -= 24 // header height
-				cell.preview.image = tab.getSnapshot(size: size)
+				if let image = tabSnapshots[ObjectIdentifier(tab)] {
+					cell.preview.image = image
+				}
+				else {
+					var size = cellSize
+					size.height -= 24 // header height
+					cell.preview.image = tab.getSnapshot(size: size)
+				}
 
 				tab.isHidden = false
 			}
