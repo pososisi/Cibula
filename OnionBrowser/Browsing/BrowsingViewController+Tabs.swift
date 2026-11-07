@@ -322,10 +322,8 @@ UICollectionViewDropDelegate, TabCellDelegate {
 		})
 		plus.translatesAutoresizingMaskIntoConstraints = false
 
-		let isRussian = (Locale.preferredLanguages.first ?? "").hasPrefix("ru")
-
 		var doneConfig = UIButton.Configuration.plain()
-		doneConfig.title = isRussian ? "Готово" : "Done"
+		doneConfig.title = CibulaL10n.tr("Done", "Готово", "Готово")
 		doneConfig.baseForegroundColor = tint
 		doneConfig.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
 			var outgoing = incoming
