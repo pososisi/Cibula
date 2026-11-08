@@ -19,22 +19,18 @@ UICollectionViewDropDelegate, TabCellDelegate {
 	}
 
 
-	private var cellSize: CGSize {
+	private var cardWidth: CGFloat {
 		let size = UIScreen.main.bounds.size
 
 		// Could be 0 or less, so secure against becoming negative with minimum width of smallest iOS device.
-		let width = (min(max(320, size.width), max(320, size.height)) - 8 * 2 /* left and right inset */) / 2 - 8 /* spacing */
+		return (min(max(320, size.width), max(320, size.height)) - 8 * 2 /* left and right inset */) / 2 - 8 /* spacing */
+	}
 
-		// Use the real proportions of the page area, so the thumbnail fills the card.
-		var ratio: CGFloat = 1.5
+	private var cellSize: CGSize {
+		let width = cardWidth
 
-		if let c = container, c.bounds.width > 0, c.bounds.height > 0 {
-			ratio = c.bounds.height / c.bounds.width
-		}
-
-		ratio = min(max(ratio, 1.2), 2.2)
-
-		return CGSize(width: width, height: width * ratio + 24 /* header height */)
+		// Cards in the proportions of Safari. The 24 points are the header of the card.
+		return CGSize(width: width, height: width * BrowsingViewController.tabCardRatio + 24)
 	}
 
 	private var overviewBackground: UIColor {
@@ -94,6 +90,9 @@ UICollectionViewDropDelegate, TabCellDelegate {
 			self.mainTools?.isHidden = true
 			// The old bar is replaced by our floating glass bar.
 			self.tabsTools?.isHidden = true
+
+			// The search field of the start page doesn't belong into the overview.
+			self.updateStartOverlay()
 		})
 	}
 
@@ -133,14 +132,8 @@ UICollectionViewDropDelegate, TabCellDelegate {
 					: UIColor(red: 0.10, green: 0.03, blue: 0.20, alpha: 0.6)
 				cell.setName(displayName(for: tab))
 
-				if let image = tabSnapshots[ObjectIdentifier(tab)] {
-					cell.preview.image = image
-				}
-				else {
-					var size = cellSize
-					size.height -= 24 // header height
-					cell.preview.image = tab.getSnapshot(size: size)
-				}
+				// Without a picture of its own (never shown in this session) a tab gets a calm placeholder.
+				cell.preview.image = tabSnapshots[ObjectIdentifier(tab)] ?? placeholder(for: tab)
 
 				tab.isHidden = false
 			}
@@ -279,6 +272,44 @@ UICollectionViewDropDelegate, TabCellDelegate {
 		return tab.url.host ?? ""
 	}
 
+	/// A dark card with a globe and the address, for tabs we have no picture of.
+	private func placeholder(for tab: Tab) -> UIImage {
+		let size = CGSize(width: cardWidth, height: cardWidth * BrowsingViewController.tabCardRatio)
+
+		let lilac = UIColor(red: 0.82, green: 0.62, blue: 1, alpha: 0.6)
+
+		return UIGraphicsImageRenderer(size: size).image { context in
+			UIColor(red: 0.12, green: 0.04, blue: 0.24, alpha: 1).setFill()
+			context.fill(CGRect(origin: .zero, size: size))
+
+			let symbol = UIImage.SymbolConfiguration(pointSize: size.width * 0.3, weight: .light)
+
+			if let globe = UIImage(systemName: "globe", withConfiguration: symbol)?
+				.withTintColor(lilac, renderingMode: .alwaysOriginal) {
+
+				globe.draw(at: CGPoint(x: (size.width - globe.size.width) / 2,
+									   y: (size.height - globe.size.height) / 2 - 16))
+			}
+
+			let host = tab.url.host ?? ""
+
+			if !host.isEmpty {
+				let style = NSMutableParagraphStyle()
+				style.alignment = .center
+				style.lineBreakMode = .byTruncatingMiddle
+
+				let attributes: [NSAttributedString.Key: Any] = [
+					.font: UIFont.systemFont(ofSize: 12, weight: .medium),
+					.foregroundColor: lilac,
+					.paragraphStyle: style
+				]
+
+				NSAttributedString(string: host, attributes: attributes).draw(
+					in: CGRect(x: 10, y: size.height / 2 + size.width * 0.18, width: size.width - 20, height: 18))
+			}
+		}
+	}
+
 	private func roundedPreview(_ collectionView: UICollectionView, _ indexPath: IndexPath) -> UIDragPreviewParameters? {
 		guard let cell = collectionView.cellForItem(at: indexPath) else {
 			return nil
@@ -395,6 +426,9 @@ UICollectionViewDropDelegate, TabCellDelegate {
 			self.container?.isHidden = false
 			self.tabsTools?.isHidden = true
 			self.mainTools?.isHidden = false
+
+			// Back on the start page, its search field comes back.
+			self.updateStartOverlay()
 		}, completion)
 	}
 }
