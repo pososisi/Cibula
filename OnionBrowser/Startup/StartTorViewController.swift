@@ -31,7 +31,28 @@ class StartTorViewController: UIViewController, BridgesConfDelegate {
 	private let retryButton = UIButton(type: .system)
 	private let bridgesButton = UIButton(type: .system)
 
+	/// Number of the current start attempt. Answers of older attempts are ignored.
+	private var attempt = 0
+
+	/// Tor is starting right now. Prevents a second start while the first one is running.
+	private var isStarting = false
+
+	/// How many times in a row we restarted Tor on our own, because it didn't answer.
+	private var autoRetries = 0
+
+	private var watchdog: DispatchWorkItem?
+
+	private var foregroundObserver: NSObjectProtocol?
+
 	override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
+
+	deinit {
+		watchdog?.cancel()
+
+		if let observer = foregroundObserver {
+			NotificationCenter.default.removeObserver(observer)
+		}
+	}
 
 	override func loadView() {
 		view = UIView()
@@ -122,6 +143,19 @@ class StartTorViewController: UIViewController, BridgesConfDelegate {
 			buttons.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
 			buttons.bottomAnchor.constraint(equalTo: guide.bottomAnchor, constant: -16)
 		])
+
+		// Coming back from the background: Tor may have finished meanwhile.
+		foregroundObserver = NotificationCenter.default.addObserver(
+			forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
+
+			guard let self = self, TorManager.shared.status == .started else {
+				return
+			}
+
+			Task { @MainActor in
+				self.view.sceneDelegate?.show(await OrbotManager.shared.checkStatus())
+			}
+		}
 	}
 
 	override func viewDidLayoutSubviews() {
@@ -133,7 +167,14 @@ class StartTorViewController: UIViewController, BridgesConfDelegate {
 	override func viewDidAppear(_ animated: Bool) {
 		super.viewDidAppear(animated)
 
-		retry()
+		// The screen is up, so the app got this far. Don't let a crash during the Tor start
+		// make the app forget the open tabs on the next launch.
+		Settings.stateRestoreLock = false
+
+		// Don't start a second time, if a start is already running.
+		if !isStarting {
+			retry()
+		}
 	}
 
 
@@ -175,12 +216,19 @@ class StartTorViewController: UIViewController, BridgesConfDelegate {
 
 	@IBAction
 	func retry() {
+		attempt += 1
+		let current = attempt
+
+		isStarting = true
+
 		ringsView.start()
 		retryButton.isHidden = true
 		headline.text = enteringText
 		progressBar.progress = 0
 		percentLabel.text = "0%"
 		statusLabel.isHidden = true
+
+		armWatchdog(current)
 
 		TorManager.shared.start(Settings.transport) { [weak self] progress, summary in
 			guard let progress = progress else {
@@ -189,41 +237,50 @@ class StartTorViewController: UIViewController, BridgesConfDelegate {
 
 			Task {
 				await MainActor.run {
-					self?.progressBar.setProgress(Float(progress) / 100, animated: true)
-					self?.percentLabel.text = String(format: "%d%%", progress)
+					guard let self = self, self.attempt == current else {
+						return
+					}
+
+					// Tor is alive and moving, give it more time.
+					self.armWatchdog(current)
+
+					self.progressBar.setProgress(Float(progress) / 100, animated: true)
+					self.percentLabel.text = String(format: "%d%%", progress)
 
 					UIAccessibility.post(notification: .announcement, argument: String(format: "%d%%", progress))
 
 					if let summary = summary, !summary.isEmpty {
-						self?.statusLabel.text = summary
-						self?.statusLabel.textColor = UIColor.white.withAlphaComponent(0.8)
-						self?.statusLabel.isHidden = false
+						self.statusLabel.text = summary
+						self.statusLabel.textColor = UIColor.white.withAlphaComponent(0.8)
+						self.statusLabel.isHidden = false
 					}
 					else {
-						self?.statusLabel.isHidden = true
+						self.statusLabel.isHidden = true
 					}
 				}
 			}
 		} _: { [weak self] error in
 			Task { @MainActor in
-				guard error == nil else {
-					self?.ringsView.stop()
-					self?.retryButton.isHidden = false
-					self?.headline.text = self?.tr("Couldn't connect", "Не удалось подключиться", "Не вдалося підключитися")
-					self?.statusLabel.text = (error ?? TorManager.Errors.noSocksAddr).localizedDescription
-					self?.statusLabel.textColor = Self.color(0xFF7A7A)
-					self?.statusLabel.isHidden = false
+				guard let self = self, self.attempt == current else {
+					return
+				}
 
-					UIAccessibility.post(notification: .announcement, argument: self?.statusLabel.text)
+				self.watchdog?.cancel()
+				self.isStarting = false
+
+				if let error = error {
+					self.showFailure(error.localizedDescription)
 
 					return
 				}
+
+				self.autoRetries = 0
 
 				AppDelegate.shared?.allOpenTabs.forEach { tab in
 					tab.reinitWebView()
 				}
 
-				self?.view.sceneDelegate?.show(await OrbotManager.shared.checkStatus())
+				self.view.sceneDelegate?.show(await OrbotManager.shared.checkStatus())
 			}
 		}
 	}
@@ -238,6 +295,52 @@ class StartTorViewController: UIViewController, BridgesConfDelegate {
 
 
 	// MARK: Private Methods
+
+	/// If Tor doesn't make any progress for 30 seconds, stop it and try again, instead of
+	/// hanging at 0% forever. After two tries in a row the error is shown.
+	private func armWatchdog(_ current: Int) {
+		watchdog?.cancel()
+
+		let item = DispatchWorkItem { [weak self] in
+			guard let self = self, self.attempt == current, self.isStarting else {
+				return
+			}
+
+			TorManager.shared.stop()
+
+			self.isStarting = false
+
+			if self.autoRetries < 2 {
+				self.autoRetries += 1
+
+				DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+					self?.retry()
+				}
+			}
+			else {
+				self.autoRetries = 0
+
+				self.showFailure(self.tr("Tor did not answer. Check your connection, try again or configure bridges.",
+										 "Tor не отвечает. Проверьте соединение, повторите попытку или настройте мосты.",
+										 "Tor не відповідає. Перевірте з'єднання, повторіть спробу або налаштуйте мости."))
+			}
+		}
+
+		watchdog = item
+
+		DispatchQueue.main.asyncAfter(deadline: .now() + 30, execute: item)
+	}
+
+	private func showFailure(_ message: String) {
+		ringsView.stop()
+		retryButton.isHidden = false
+		headline.text = tr("Couldn't connect", "Не удалось подключиться", "Не вдалося підключитися")
+		statusLabel.text = message
+		statusLabel.textColor = Self.color(0xFF7A7A)
+		statusLabel.isHidden = false
+
+		UIAccessibility.post(notification: .announcement, argument: message)
+	}
 
 	private var enteringText: String {
 		tr("Entering the Tor network…", "Заходим в сеть Tor…", "Заходимо в мережу Tor…")
