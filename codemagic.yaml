@@ -37,13 +37,15 @@ workflows:
           CX = CY = 512.0
 
           # Dark purple background, rings dim outside and bright inside, purple core.
+          # S makes the whole logo smaller, so there is more space around it.
+          S = 0.84
           RINGS = [
-              (440.0, 22.0, (106, 63, 160)),
-              (345.0, 22.0, (138, 96, 196)),
-              (250.0, 22.0, (166, 122, 232)),
-              (160.0, 22.0, (190, 150, 255)),
+              (440.0 * S, 22.0 * S, (106, 63, 160)),
+              (345.0 * S, 22.0 * S, (138, 96, 196)),
+              (250.0 * S, 22.0 * S, (166, 122, 232)),
+              (160.0 * S, 22.0 * S, (190, 150, 255)),
           ]
-          CORE_R = 84.0
+          CORE_R = 84.0 * S
           CORE_TOP = (95, 40, 200)
           CORE_BOTTOM = (127, 48, 252)
 
