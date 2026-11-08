@@ -23,6 +23,9 @@ class BrowsingViewController: UIViewController, TabDelegate {
 	/// UserDefaults key of the "merge bars like Safari" switch in the settings.
 	static let mergedBarsKey = "CibulaMergedBars"
 
+	/// Height of a tab card in the tab overview, in relation to its width (like Safari).
+	static let tabCardRatio: CGFloat = 1.4
+
 	private static let reloadImg = UIImage(systemName: "arrow.clockwise")
 	private static let stopImg = UIImage(systemName: "xmark")
 
@@ -40,6 +43,9 @@ class BrowsingViewController: UIViewController, TabDelegate {
 
 	private let edgeGap: CGFloat = 6
 	private let dockBottomGap: CGFloat = 16
+
+	/// Search field which is shown over the start page.
+	private var startSearch: StartSearchView?
 
 	/// Live thumbnails of the tabs for the tab overview.
 	var tabSnapshots = [ObjectIdentifier: UIImage]()
@@ -462,6 +468,8 @@ class BrowsingViewController: UIViewController, TabDelegate {
 
 		updateFloatingMetrics()
 
+		updateStartOverlay()
+
 		if let progress = progress {
 			progress.progress = currentTab?.progress ?? 1
 
@@ -696,6 +704,7 @@ class BrowsingViewController: UIViewController, TabDelegate {
 
 	/**
 	Takes a picture of the page which is showing right now, for the tab overview.
+	Like in Safari it shows the top of the page, without the area under the floating bars.
 	Only works while the page is visible, so it is called before the page goes away.
 	*/
 	func captureSnapshot() {
@@ -708,13 +717,21 @@ class BrowsingViewController: UIViewController, TabDelegate {
 			return
 		}
 
+		let width = container.bounds.width
+		let height = width * Self.tabCardRatio
+
+		// The page starts below the safe area, the part above it is empty.
+		let skip = floating ? view.safeAreaInsets.top : 0
+
 		let format = UIGraphicsImageRendererFormat()
 		format.scale = 1.5
 
-		let renderer = UIGraphicsImageRenderer(size: container.bounds.size, format: format)
+		let renderer = UIGraphicsImageRenderer(size: CGSize(width: width, height: height), format: format)
 
 		tabSnapshots[ObjectIdentifier(tab)] = renderer.image { _ in
-			container.drawHierarchy(in: container.bounds, afterScreenUpdates: false)
+			container.drawHierarchy(
+				in: CGRect(x: 0, y: -skip, width: container.bounds.width, height: container.bounds.height),
+				afterScreenUpdates: false)
 		}
 	}
 
@@ -752,8 +769,58 @@ class BrowsingViewController: UIViewController, TabDelegate {
 		topBarTopConstraint?.constant = edgeGap - additionalSafeAreaInsets.top
 	}
 
+	/**
+	The start page has a search field. It lives here (not in the web page), so it can use the
+	real address bar and with it the search engine from the settings.
+	*/
+	func updateStartOverlay() {
+		guard floating, let container = container else {
+			return
+		}
+
+		let onStartPage = currentTab?.url == URL.start && (tabsCollection?.isHidden ?? true)
+
+		guard onStartPage else {
+			startSearch?.isHidden = true
+
+			return
+		}
+
+		if startSearch == nil {
+			let overlay = StartSearchView()
+			overlay.translatesAutoresizingMaskIntoConstraints = false
+			overlay.onSubmit = { [weak self] text in
+				self?.submitStartSearch(text)
+			}
+
+			view.insertSubview(overlay, aboveSubview: container)
+
+			NSLayoutConstraint.activate([
+				overlay.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 14),
+				overlay.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+				overlay.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+				overlay.heightAnchor.constraint(equalToConstant: 52)
+			])
+
+			startSearch = overlay
+		}
+
+		startSearch?.refresh()
+		startSearch?.isHidden = false
+	}
+
 
 	// MARK: Private Methods
+
+	private func submitStartSearch(_ text: String) {
+		guard let field = searchFl else {
+			return
+		}
+
+		field.text = text
+
+		_ = field.delegate?.textFieldShouldReturn?(field)
+	}
 
 	/**
 	Gives the top and bottom bars a floating liquid glass look, like Safari.
@@ -1267,5 +1334,121 @@ private final class GradientBackdropView: UIView {
 						   UIColor(red: 0.16, green: 0.04, blue: 0.32, alpha: 1).cgColor]
 		gradient.startPoint = CGPoint(x: 0.2, y: 0)
 		gradient.endPoint = CGPoint(x: 0.8, y: 1)
+	}
+}
+
+
+/**
+Search field of the start page: a glass capsule with the name of the search engine on the right.
+It hands the text over to the real address bar, so nothing is searched in a different way.
+*/
+private final class StartSearchView: UIView, UITextFieldDelegate {
+
+	let field = UITextField()
+
+	var onSubmit: ((String) -> Void)?
+
+	private let engineLabel = UILabel()
+
+	private let lilac = UIColor(red: 0.90, green: 0.82, blue: 1, alpha: 1)
+
+	override init(frame: CGRect) {
+		super.init(frame: frame)
+
+		setup()
+	}
+
+	required init?(coder: NSCoder) {
+		super.init(coder: coder)
+
+		setup()
+	}
+
+	/// Texts can change (language, search engine), so they are set again every time.
+	func refresh() {
+		field.attributedPlaceholder = NSAttributedString(
+			string: CibulaL10n.tr("Search or type URL", "Поиск или адрес", "Пошук або адреса"),
+			attributes: [.foregroundColor: UIColor.white.withAlphaComponent(0.55)])
+
+		engineLabel.text = Settings.searchEngine.name
+		engineLabel.sizeToFit()
+		engineLabel.frame.size.width += 10
+
+		field.rightView = engineLabel
+	}
+
+	private func setup() {
+		let effect: UIVisualEffect
+
+		if #available(iOS 26.0, *) {
+			effect = UIGlassEffect()
+		}
+		else {
+			effect = UIBlurEffect(style: .systemUltraThinMaterialDark)
+		}
+
+		let glass = CapsuleGlassView(effect: effect)
+		glass.clipsToBounds = true
+		glass.layer.cornerCurve = .continuous
+		glass.layer.borderWidth = 0.5
+		glass.layer.borderColor = UIColor(red: 0.85, green: 0.70, blue: 1, alpha: 0.35).cgColor
+		glass.contentView.backgroundColor = UIColor(red: 0.16, green: 0.05, blue: 0.30, alpha: 0.58)
+		glass.translatesAutoresizingMaskIntoConstraints = false
+		addSubview(glass)
+
+		let icon = UIImageView(image: UIImage(systemName: "magnifyingglass"))
+		icon.tintColor = lilac
+		icon.contentMode = .center
+		icon.frame = CGRect(x: 0, y: 0, width: 30, height: 24)
+
+		engineLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+		engineLabel.textColor = lilac.withAlphaComponent(0.8)
+
+		field.overrideUserInterfaceStyle = .dark
+		field.borderStyle = .none
+		field.backgroundColor = .clear
+		field.font = .systemFont(ofSize: 17)
+		field.textColor = .white
+		field.tintColor = lilac
+		field.returnKeyType = .go
+		field.keyboardType = .webSearch
+		field.autocorrectionType = .no
+		field.autocapitalizationType = .none
+		field.spellCheckingType = .no
+		field.clearButtonMode = .whileEditing
+		field.leftView = icon
+		field.leftViewMode = .always
+		field.rightViewMode = .unlessEditing
+		field.delegate = self
+		field.translatesAutoresizingMaskIntoConstraints = false
+		addSubview(field)
+
+		NSLayoutConstraint.activate([
+			glass.topAnchor.constraint(equalTo: topAnchor),
+			glass.bottomAnchor.constraint(equalTo: bottomAnchor),
+			glass.leadingAnchor.constraint(equalTo: leadingAnchor),
+			glass.trailingAnchor.constraint(equalTo: trailingAnchor),
+
+			field.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+			field.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
+			field.centerYAnchor.constraint(equalTo: centerYAnchor),
+			field.heightAnchor.constraint(equalToConstant: 44)
+		])
+
+		refresh()
+	}
+
+	func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+		let text = (textField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+
+		textField.resignFirstResponder()
+
+		if !text.isEmpty {
+			textField.text = ""
+
+			onSubmit?(text)
+		}
+
+		return true
 	}
 }
