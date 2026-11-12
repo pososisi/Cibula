@@ -24,20 +24,39 @@ body {
 	-webkit-tap-highlight-color: transparent;
 }
 
-/* The top 84px are kept free for the search field of the app. */
 .page {
 	box-sizing: border-box;
 	height: 100%;
-	padding: 84px 16px 14px;
+	padding: 0 16px 14px;
 	display: flex;
 	flex-direction: column;
 	justify-content: space-between;
 }
 
+/* Title 60-116, search field of the app 148-200, favorites from 228 (all in points from the top of the page). */
+.top {
+	padding-top: 60px;
+}
+
+.title {
+	height: 56px;
+	line-height: 56px;
+	text-align: center;
+	font-size: 46px;
+	font-weight: 800;
+	letter-spacing: -1px;
+}
+
+.search-slot {
+	height: 52px;
+	margin-top: 32px;
+}
+
 .fav {
 	display: grid;
-	grid-template-columns: repeat(3, 1fr);
-	gap: 20px 8px;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 20px 4px;
+	margin-top: 28px;
 }
 
 .fav a {
@@ -45,20 +64,33 @@ body {
 	text-align: center;
 	text-decoration: none;
 	color: rgba(255, 255, 255, .86);
-	font-size: 13px;
+	font-size: 12px;
 	line-height: 1.25;
 }
 
-.fav img {
+.ico {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 60px;
+	height: 60px;
+	margin: 0 auto 7px;
+	border-radius: 17px;
+	color: #fff;
+	font-size: 26px;
+	font-weight: 800;
+}
+
+.name {
 	display: block;
-	width: 64px;
-	height: 64px;
-	margin: 0 auto 8px;
-	background-color: rgba(255, 255, 255, .92);
-	border-radius: 18px;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	padding: 0 2px;
 }
 
 .donate {
+	position: relative;
 	padding: 16px;
 	border-radius: 22px;
 	background-color: rgba(255, 255, 255, .08);
@@ -68,6 +100,7 @@ body {
 .donate-top {
 	display: flex;
 	align-items: flex-start;
+	padding-right: 30px;
 }
 
 .donate-top svg {
@@ -102,21 +135,45 @@ body {
 	text-align: center;
 	text-decoration: none;
 }
+
+.x {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: 0;
+	border-radius: 14px;
+	background-color: rgba(255, 255, 255, .12);
+	color: rgba(255, 255, 255, .8);
+	font-size: 15px;
+	line-height: 28px;
+}
 </style>
 </head>
 <body>
 <div class="page">
 
-	<div class="fav" style="{{ bookmarks_table_style }}">
-		<a href="{{ bookmark_url_0 }}"><img src="{{ bookmark_icon_0 }}" alt="">{{ bookmark_name_0 }}</a>
-		<a href="{{ bookmark_url_1 }}"><img src="{{ bookmark_icon_1 }}" alt="">{{ bookmark_name_1 }}</a>
-		<a href="{{ bookmark_url_2 }}"><img src="{{ bookmark_icon_2 }}" alt="">{{ bookmark_name_2 }}</a>
-		<a href="{{ bookmark_url_3 }}"><img src="{{ bookmark_icon_3 }}" alt="">{{ bookmark_name_3 }}</a>
-		<a href="{{ bookmark_url_4 }}"><img src="{{ bookmark_icon_4 }}" alt="">{{ bookmark_name_4 }}</a>
-		<a href="{{ bookmark_url_5 }}"><img src="{{ bookmark_icon_5 }}" alt="">{{ bookmark_name_5 }}</a>
+	<div class="top">
+		<div class="title">Cibula</div>
+
+		<!-- The search field is part of the app and sits exactly here. -->
+		<div class="search-slot"></div>
+
+		<div class="fav" style="{{ bookmarks_table_style }}">
+			<a href="https://onion.my/"><div class="ico" style="background: linear-gradient(160deg, #35D07F, #1B8F52);">O</div><span class="name">onion.my</span></a>
+			<a href="http://juhanurmihxlp77nkq76byazcldy2hlmovfu2epvl5ankdibsot4csyd.onion/"><div class="ico" style="background: linear-gradient(160deg, #8456C9, #3C1D70);">A</div><span class="name">Ahmia</span></a>
+			<a href="http://bbcnewsd73hkzno2ini43t4gblxvycyac5aw4gnv7t2rccijh7745uqd.onion/"><div class="ico" style="background: #fff; color: #000; font-size: 21px; letter-spacing: 1px;">BBC</div><span class="name">BBC</span></a>
+			<a href="http://p53lf57qovyuvwsc6xnrppyply3vtqm7l6pcobkmyqsiofyeznfu5uqd.onion/"><div class="ico" style="background: linear-gradient(160deg, #2F4A7D, #162340);">P</div><span class="name">ProPublica</span></a>
+			<a href="https://www.legalizer.cc/"><div class="ico" style="background: linear-gradient(160deg, #FF9A3D, #D4571A);">L</div><span class="name">Legalizer</span></a>
+			<a href="http://bj5hp4onm4tvpdb5rzf4zsbwoons67jnastvuxefe4s3v7kupjhgh6qd.onion/"><div class="ico" style="background: linear-gradient(160deg, #2FC7C7, #17807F);">B</div><span class="name">bj5hp4…</span></a>
+			<a href="http://tordexu73joywapk2txdr54jed4imqledpcvcuf75qsas2gwdgksvnyd.onion/"><div class="ico" style="background: linear-gradient(160deg, #E0509C, #9B2A6B);">T</div><span class="name">tordexu…</span></a>
+		</div>
 	</div>
 
-	<div class="donate">
+	<div class="donate" id="donate">
+		<button class="x" type="button" onclick="hideDonate()" aria-label="Close">&#10005;</button>
 		<div class="donate-top">
 			<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
 			<div>
@@ -133,7 +190,27 @@ body {
 <span id="probe" hidden>{{ Subscribe to Tor Newsletter }}</span>
 
 <script>
+function hideDonate() {
+	var card = document.getElementById('donate');
+
+	if (card) {
+		card.style.display = 'none';
+	}
+
+	try {
+		localStorage.setItem('cibulaDonateHidden', '1');
+	}
+	catch (e) {}
+}
+
 (function () {
+	try {
+		if (localStorage.getItem('cibulaDonateHidden') === '1') {
+			hideDonate();
+		}
+	}
+	catch (e) {}
+
 	var probe = (document.getElementById('probe') || {}).textContent || '';
 	var lang = /[іїєґІЇЄҐ]/.test(probe) ? 'uk' : (/[а-яёА-ЯЁ]/.test(probe) ? 'ru' : 'en');
 
