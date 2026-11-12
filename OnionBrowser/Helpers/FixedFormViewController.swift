@@ -11,7 +11,38 @@
 import UIKit
 import Eureka
 
+/**
+Base class of all the form screens (settings, security, bookmark editing ...).
+Besides the keyboard fix it gives all of them the Cibula look: rounded sections on a purple background.
+*/
 open class FixedFormViewController: FormViewController {
+
+	open override func viewDidLoad() {
+		CibulaTheme.applyOnce()
+
+		overrideUserInterfaceStyle = .dark
+
+		// Rounded, inset sections instead of the flat grouped list.
+		if tableView == nil {
+			let table = UITableView(frame: view.bounds, style: .insetGrouped)
+			table.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+			tableView = table
+		}
+
+		super.viewDidLoad()
+
+		tableView.backgroundColor = .clear
+		tableView.backgroundView = FormBackdropView()
+		tableView.separatorColor = UIColor.white.withAlphaComponent(0.12)
+	}
+
+	open override func viewWillAppear(_ animated: Bool) {
+		super.viewWillAppear(animated)
+
+		navigationController?.overrideUserInterfaceStyle = .dark
+
+		CibulaTheme.useTextForExit(navigationItem)
+	}
 
 	open override func keyboardWillShow(_ notification: Notification) {
 		// When showing inside a popover on iPad, the popover gets resized on
@@ -21,5 +52,96 @@ open class FixedFormViewController: FormViewController {
 		}
 
 		super.keyboardWillShow(notification)
+	}
+}
+
+
+/// The look of the app for all the screens which open in a navigation controller.
+enum CibulaTheme {
+
+	/// Purple of buttons, links and the "Done" pill.
+	static let tint = UIColor(red: 0.60, green: 0.33, blue: 1.0, alpha: 1)
+
+	private static var applied = false
+
+	/// Sets the colors of tables, rows and bars once for the whole app.
+	static func applyOnce() {
+		if applied {
+			return
+		}
+
+		applied = true
+
+		let container: [UIAppearanceContainer.Type] = [UINavigationController.self]
+
+		let table = UITableView.appearance(whenContainedInInstancesOf: container)
+		table.backgroundColor = UIColor(red: 0.08, green: 0.03, blue: 0.15, alpha: 1)
+		table.separatorColor = UIColor.white.withAlphaComponent(0.12)
+
+		UITableViewCell.appearance(whenContainedInInstancesOf: container).backgroundColor
+			= UIColor.white.withAlphaComponent(0.07)
+
+		UINavigationBar.appearance().tintColor = tint
+	}
+
+	/// Blue buttons and links become purple.
+	static func applyWindow(_ window: UIWindow?) {
+		window?.tintColor = tint
+	}
+
+	/**
+	The system "Done" button is a blue circle with a check mark. Cibula shows the word instead,
+	on the left side. Only a button which obviously closes the screen is touched.
+	*/
+	static func useTextForExit(_ navigationItem: UINavigationItem) {
+		guard let item = navigationItem.leftBarButtonItem,
+			  item.title == nil, item.image == nil, item.customView == nil,
+			  let action = item.action
+		else {
+			return
+		}
+
+		let name = NSStringFromSelector(action).lowercased()
+
+		guard name.contains("dism") || name.contains("done") || name.contains("close") else {
+			return
+		}
+
+		navigationItem.leftBarButtonItem = UIBarButtonItem(
+			title: CibulaL10n.tr("Done", "Готово", "Готово"),
+			style: .done, target: item.target, action: action)
+	}
+}
+
+
+/// Dark purple gradient behind the tables of the form screens.
+private final class FormBackdropView: UIView {
+
+	override class var layerClass: AnyClass {
+		CAGradientLayer.self
+	}
+
+	override init(frame: CGRect) {
+		super.init(frame: frame)
+
+		configure()
+	}
+
+	required init?(coder: NSCoder) {
+		super.init(coder: coder)
+
+		configure()
+	}
+
+	private func configure() {
+		guard let gradient = layer as? CAGradientLayer else {
+			return
+		}
+
+		gradient.colors = [UIColor(red: 0.05, green: 0.00, blue: 0.10, alpha: 1).cgColor,
+						   UIColor(red: 0.11, green: 0.04, blue: 0.22, alpha: 1).cgColor,
+						   UIColor(red: 0.18, green: 0.06, blue: 0.36, alpha: 1).cgColor]
+		gradient.startPoint = CGPoint(x: 0.2, y: 0)
+		gradient.endPoint = CGPoint(x: 0.8, y: 1)
 	}
 }
