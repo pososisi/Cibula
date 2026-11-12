@@ -35,17 +35,14 @@ class SettingsViewController: FixedFormViewController {
 	}
 
 	override func viewDidLoad() {
-		// Rounded, inset sections instead of the flat grouped list.
-		let table = UITableView(frame: view.bounds, style: .insetGrouped)
-		table.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-		tableView = table
-
+		// The base class (FixedFormViewController) makes the table rounded and purple.
 		super.viewDidLoad()
 
-		navigationItem.rightBarButtonItem = UIBarButtonItem(
+		navigationItem.leftBarButtonItem = UIBarButtonItem(
 			title: CibulaL10n.tr("Done", "Готово", "Готово"),
 			style: .done, target: self, action: #selector(dismsiss_))
 		navigationItem.title = NSLocalizedString("Settings", comment: "Scene title")
+
 
 		form
 		+++ Section(header: CibulaL10n.tr("Language", "Язык", "Мова"),
