@@ -47,6 +47,9 @@ class BrowsingViewController: UIViewController, TabDelegate {
 	/// Search field which is shown over the start page.
 	private var startSearch: StartSearchView?
 
+	/// The search field was showing, when the last update came.
+	private var startSearchWasVisible = false
+
 	/// Live thumbnails of the tabs for the tab overview.
 	var tabSnapshots = [ObjectIdentifier: UIImage]()
 
@@ -242,6 +245,8 @@ class BrowsingViewController: UIViewController, TabDelegate {
 	override func viewDidLoad() {
 		super.viewDidLoad()
 
+		CibulaTheme.applyOnce()
+
 		tabsCollection?.register(TabCell.nib, forCellWithReuseIdentifier: TabCell.reuseIdentifier)
 
 		// There could have been tabs added before XIB was initialized.
@@ -273,6 +278,9 @@ class BrowsingViewController: UIViewController, TabDelegate {
 
 	override func viewDidAppear(_ animated: Bool) {
 		super.viewDidAppear(animated)
+
+		// Blue buttons and links of the whole app become purple.
+		CibulaTheme.applyWindow(view.window)
 
 		updateFloatingMetrics()
 
@@ -428,7 +436,10 @@ class BrowsingViewController: UIViewController, TabDelegate {
 
 		AppDelegate.shared?.dismissModals(of: BookmarksViewController.self)
 
-		present(BookmarksViewController.instantiate(), bookmarksBt)
+		let bookmarks = BookmarksViewController.instantiate()
+		bookmarks.overrideUserInterfaceStyle = .dark
+
+		present(bookmarks, bookmarksBt)
 	}
 
 	@discardableResult
@@ -437,6 +448,7 @@ class BrowsingViewController: UIViewController, TabDelegate {
 		AppDelegate.shared?.dismissModals(of: SettingsViewController.self)
 
 		let navC = SettingsViewController.instantiate()
+		navC.overrideUserInterfaceStyle = .dark
 
 		present(navC)
 
@@ -778,9 +790,19 @@ class BrowsingViewController: UIViewController, TabDelegate {
 			return
 		}
 
-		let onStartPage = currentTab?.url == URL.start && (tabsCollection?.isHidden ?? true)
+		let inOverview = !(tabsCollection?.isHidden ?? true)
+		let onStartPage = currentTab?.url == URL.start
+		let loading = currentTab?.isLoading ?? false
 
-		guard onStartPage else {
+		// After a search the address changes at once, but the start page stays on the screen
+		// until the new page arrives. The field stays as long as the page is loading.
+		let visible = !inOverview && (onStartPage || (loading && startSearchWasVisible))
+
+		if !inOverview {
+			startSearchWasVisible = visible
+		}
+
+		guard visible else {
 			startSearch?.isHidden = true
 
 			return
@@ -795,8 +817,9 @@ class BrowsingViewController: UIViewController, TabDelegate {
 
 			view.insertSubview(overlay, aboveSubview: container)
 
+			// 148 points below the top of the page: room for the title "Cibula" of the start page.
 			NSLayoutConstraint.activate([
-				overlay.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 14),
+				overlay.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 148),
 				overlay.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
 				overlay.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
 				overlay.heightAnchor.constraint(equalToConstant: 52)
