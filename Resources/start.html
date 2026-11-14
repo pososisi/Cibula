@@ -68,17 +68,19 @@ body {
 	line-height: 1.25;
 }
 
+/* Empty places stay invisible. */
+.fav a[href=""] {
+	display: none;
+}
+
 .ico {
-	display: flex;
-	align-items: center;
-	justify-content: center;
+	display: block;
 	width: 60px;
 	height: 60px;
 	margin: 0 auto 7px;
 	border-radius: 17px;
-	color: #fff;
-	font-size: 26px;
-	font-weight: 800;
+	background-color: rgba(255, 255, 255, .92);
+	object-fit: cover;
 }
 
 .name {
@@ -161,14 +163,15 @@ body {
 		<!-- The search field is part of the app and sits exactly here. -->
 		<div class="search-slot"></div>
 
+		<!-- The favorites are the first 7 bookmarks of the app. -->
 		<div class="fav" style="{{ bookmarks_table_style }}">
-			<a href="https://onion.my/"><div class="ico" style="background: linear-gradient(160deg, #35D07F, #1B8F52);">O</div><span class="name">onion.my</span></a>
-			<a href="http://juhanurmihxlp77nkq76byazcldy2hlmovfu2epvl5ankdibsot4csyd.onion/"><div class="ico" style="background: linear-gradient(160deg, #8456C9, #3C1D70);">A</div><span class="name">Ahmia</span></a>
-			<a href="http://bbcnewsd73hkzno2ini43t4gblxvycyac5aw4gnv7t2rccijh7745uqd.onion/"><div class="ico" style="background: #fff; color: #000; font-size: 21px; letter-spacing: 1px;">BBC</div><span class="name">BBC</span></a>
-			<a href="http://p53lf57qovyuvwsc6xnrppyply3vtqm7l6pcobkmyqsiofyeznfu5uqd.onion/"><div class="ico" style="background: linear-gradient(160deg, #2F4A7D, #162340);">P</div><span class="name">ProPublica</span></a>
-			<a href="https://www.legalizer.cc/"><div class="ico" style="background: linear-gradient(160deg, #FF9A3D, #D4571A);">L</div><span class="name">Legalizer</span></a>
-			<a href="http://bj5hp4onm4tvpdb5rzf4zsbwoons67jnastvuxefe4s3v7kupjhgh6qd.onion/"><div class="ico" style="background: linear-gradient(160deg, #2FC7C7, #17807F);">B</div><span class="name">bj5hp4…</span></a>
-			<a href="http://tordexu73joywapk2txdr54jed4imqledpcvcuf75qsas2gwdgksvnyd.onion/"><div class="ico" style="background: linear-gradient(160deg, #E0509C, #9B2A6B);">T</div><span class="name">tordexu…</span></a>
+			<a href="{{ bookmark_url_0 }}"><img class="ico" src="{{ bookmark_icon_0 }}" alt=""><span class="name">{{ bookmark_name_0 }}</span></a>
+			<a href="{{ bookmark_url_1 }}"><img class="ico" src="{{ bookmark_icon_1 }}" alt=""><span class="name">{{ bookmark_name_1 }}</span></a>
+			<a href="{{ bookmark_url_2 }}"><img class="ico" src="{{ bookmark_icon_2 }}" alt=""><span class="name">{{ bookmark_name_2 }}</span></a>
+			<a href="{{ bookmark_url_3 }}"><img class="ico" src="{{ bookmark_icon_3 }}" alt=""><span class="name">{{ bookmark_name_3 }}</span></a>
+			<a href="{{ bookmark_url_4 }}"><img class="ico" src="{{ bookmark_icon_4 }}" alt=""><span class="name">{{ bookmark_name_4 }}</span></a>
+			<a href="{{ bookmark_url_5 }}"><img class="ico" src="{{ bookmark_icon_5 }}" alt=""><span class="name">{{ bookmark_name_5 }}</span></a>
+			<a href="{{ bookmark_url_6 }}"><img class="ico" src="{{ bookmark_icon_6 }}" alt=""><span class="name">{{ bookmark_name_6 }}</span></a>
 		</div>
 	</div>
 
