@@ -12,29 +12,11 @@ import UIKit
 import Eureka
 
 /**
-Base class of all the form screens (settings, security, bookmark editing ...).
-Besides the keyboard fix it gives all of them the Cibula look: rounded sections on a purple background.
+Base class of the form screens (settings, security, bookmark editing ...).
+The Cibula look (rounded sections on a purple background) comes from the hook on
+`FormViewController` below, so it also covers the screens Eureka builds itself.
 */
 open class FixedFormViewController: FormViewController {
-
-	open override func viewDidLoad() {
-		CibulaTheme.applyOnce()
-
-		overrideUserInterfaceStyle = .dark
-
-		// Rounded, inset sections instead of the flat grouped list.
-		if tableView == nil {
-			let table = UITableView(frame: view.bounds, style: .insetGrouped)
-			table.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-			tableView = table
-		}
-
-		super.viewDidLoad()
-
-		tableView.backgroundColor = .clear
-		tableView.backgroundView = FormBackdropView()
-		tableView.separatorColor = UIColor.white.withAlphaComponent(0.12)
-	}
 
 	open override func viewWillAppear(_ animated: Bool) {
 		super.viewWillAppear(animated)
@@ -56,6 +38,54 @@ open class FixedFormViewController: FormViewController {
 }
 
 
+extension FormViewController {
+
+	/**
+	Makes every Eureka form screen of the app rounded and purple. That includes the selection
+	lists behind "Language" or "Tab Security", which Eureka creates on its own.
+	*/
+	static let cibulaSwizzle: Void = {
+		let selector = #selector(UIViewController.viewDidLoad)
+		let replacementSelector = #selector(FormViewController.cibulaViewDidLoad)
+
+		guard let original = class_getInstanceMethod(FormViewController.self, selector),
+			  let replacement = class_getInstanceMethod(FormViewController.self, replacementSelector),
+			  let inherited = class_getInstanceMethod(UIViewController.self, selector)
+		else {
+			return
+		}
+
+		// Only exchange, if Eureka has its own version. Otherwise we would touch every screen of the app.
+		if method_getImplementation(original) == method_getImplementation(inherited) {
+			return
+		}
+
+		method_exchangeImplementations(original, replacement)
+	}()
+
+	/// After the exchange, calling this runs the original `viewDidLoad` of Eureka.
+	@objc func cibulaViewDidLoad() {
+		overrideUserInterfaceStyle = .dark
+
+		// Rounded, inset sections instead of the flat grouped list.
+		if tableView == nil {
+			let table = UITableView(frame: view.bounds, style: .insetGrouped)
+			table.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+			tableView = table
+		}
+
+		cibulaViewDidLoad()
+
+		tableView.backgroundColor = .clear
+		tableView.separatorColor = UIColor.white.withAlphaComponent(0.12)
+
+		if !(tableView.backgroundView is FormBackdropView) {
+			tableView.backgroundView = FormBackdropView()
+		}
+	}
+}
+
+
 /// The look of the app for all the screens which open in a navigation controller.
 enum CibulaTheme {
 
@@ -71,6 +101,9 @@ enum CibulaTheme {
 		}
 
 		applied = true
+
+		// Rounded, purple form screens everywhere.
+		_ = FormViewController.cibulaSwizzle
 
 		let container: [UIAppearanceContainer.Type] = [UINavigationController.self]
 
