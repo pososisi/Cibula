@@ -50,6 +50,10 @@ class BrowsingViewController: UIViewController, TabDelegate {
 	/// The search field was showing, when the last update came.
 	private var startSearchWasVisible = false
 
+	/// Dark cover over the whole interface at startup. It goes away, when everything is loaded.
+	private var cover: UIView?
+	private var coverSince = Date()
+
 	/// Live thumbnails of the tabs for the tab overview.
 	var tabSnapshots = [ObjectIdentifier: UIImage]()
 
@@ -257,6 +261,8 @@ class BrowsingViewController: UIViewController, TabDelegate {
 		styleChrome()
 
 		updateChrome()
+
+		showStartupCover()
 	}
 
 	override func viewWillAppear(_ animated: Bool) {
@@ -481,6 +487,8 @@ class BrowsingViewController: UIViewController, TabDelegate {
 		updateFloatingMetrics()
 
 		updateStartOverlay()
+
+		revealInterfaceIfReady()
 
 		if let progress = progress {
 			progress.progress = currentTab?.progress ?? 1
@@ -835,6 +843,82 @@ class BrowsingViewController: UIViewController, TabDelegate {
 
 	// MARK: Private Methods
 
+	/**
+	Covers everything with the dark purple of the launch screen, so the parts of the interface
+	(search field, bars, page) don't appear one after the other.
+	*/
+	private func showStartupCover() {
+		let cover = GradientBackdropView()
+		cover.translatesAutoresizingMaskIntoConstraints = false
+		view.addSubview(cover)
+
+		NSLayoutConstraint.activate([
+			cover.topAnchor.constraint(equalTo: view.topAnchor),
+			cover.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+			cover.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+			cover.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+		])
+
+		self.cover = cover
+		coverSince = Date()
+
+		scheduleCoverCheck()
+	}
+
+	/// The page could finish without anybody telling us, so look again and again, until the cover is gone.
+	private func scheduleCoverCheck() {
+		DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+			guard let self = self, self.cover != nil else {
+				return
+			}
+
+			// Never keep the cover longer than 5 seconds.
+			self.revealInterfaceIfReady(force: Date().timeIntervalSince(self.coverSince) > 5)
+
+			self.scheduleCoverCheck()
+		}
+	}
+
+	private func revealInterfaceIfReady(force: Bool = false) {
+		guard let cover = cover else {
+			return
+		}
+
+		if !force {
+			// Wait until the first tab exists.
+			guard let tab = currentTab else {
+				return
+			}
+
+			let loaded = !tab.isLoading && tab.progress >= 1
+			let waited = Date().timeIntervalSince(coverSince)
+
+			if tab.url == URL.start {
+				// The start page has to be completely loaded.
+				guard loaded else {
+					return
+				}
+			}
+			else {
+				// A restored page can take long over Tor. It gets a short time only.
+				guard loaded || waited > 1.2 else {
+					return
+				}
+			}
+		}
+
+		self.cover = nil
+
+		// A short moment, so the web view can paint its first picture, then the cover fades out.
+		DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+			UIView.animate(withDuration: 0.3, animations: {
+				cover.alpha = 0
+			}) { _ in
+				cover.removeFromSuperview()
+			}
+		}
+	}
+
 	private func submitStartSearch(_ text: String) {
 		guard let field = searchFl else {
 			return
@@ -926,6 +1010,11 @@ class BrowsingViewController: UIViewController, TabDelegate {
 			field.backgroundColor = .clear
 			field.textColor = .white
 			field.tintColor = lilac
+
+			// What stands in the empty address bar, e.g. on the start page.
+			field.attributedPlaceholder = NSAttributedString(
+				string: CibulaL10n.tr("Enter address…", "Введите адрес…", "Введіть адресу…"),
+				attributes: [.foregroundColor: UIColor.white.withAlphaComponent(0.5)])
 		}
 
 		reloadBt.tintColor = lilac
