@@ -27,7 +27,7 @@
 
 The latest ready-made version of Cibula is available in our Telegram channel.
 
-[![Download in Telegram](https://img.shields.io/badge/Telegram-Download%20the%20latest%20version-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](TELEGRAM_LINK)
+[![Download in Telegram](https://img.shields.io/badge/Telegram-Download%20the%20latest%20version-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/CibulaOnionBrowser)
 
 Cibula is not on the App Store. The builds are `.ipa` files. iOS does not install unsigned apps, so unless the channel post says a build is already signed, sign it with your own Apple developer certificate first (see [Install](#install)).
 
