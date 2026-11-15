@@ -11,7 +11,7 @@
 [![Форк Onion Browser](https://img.shields.io/badge/форк-Onion%20Browser-7D4CDB?style=for-the-badge)](https://github.com/OnionBrowser/OnionBrowser)
 [![iOS 17+](https://img.shields.io/badge/iOS-17%2B-000000?style=for-the-badge&logo=apple&logoColor=white)](#вимоги)
 [![Tor](https://img.shields.io/badge/мережа-Tor-7D4CDB?style=for-the-badge&logo=torproject&logoColor=white)](https://www.torproject.org/)
-[![Telegram](https://img.shields.io/badge/Telegram-Завантажити-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](#завантажити)
+[![Telegram](https://img.shields.io/badge/Telegram-Завантажити-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/CibulaOnionBrowser)
 
 [English](README.md) · [Русский](README.ru.md) · **Українська**
 
