@@ -47,8 +47,17 @@ class BrowsingViewController: UIViewController, TabDelegate {
 	/// Search field which is shown over the start page.
 	private var startSearch: StartSearchView?
 
-	/// The search field was showing, when the last update came.
-	private var startSearchWasVisible = false
+	/// Invisible button over the "+" tile of the start page.
+	private var startPlus: UIControl?
+
+	/// The tab which shows (or has just left) the start page with our search field.
+	private var startOwner: ObjectIdentifier?
+
+	/// When the user left the start page in that tab, and whether we saw the new page loading since.
+	private var startLeftAt: Date?
+	private var startSawLoading = false
+
+	private var startRefreshScheduled = false
 
 	/// Dark cover over the whole interface at startup. It goes away, when everything is loaded.
 	private var cover: UIView?
@@ -262,6 +271,11 @@ class BrowsingViewController: UIViewController, TabDelegate {
 
 		updateChrome()
 
+		// The start page shows the bookmarks, so it has to follow every change of them.
+		NotificationCenter.default.addObserver(forName: .cibulaBookmarksChanged, object: nil, queue: .main) { [weak self] _ in
+			self?.refreshStartPages()
+		}
+
 		showStartupCover()
 	}
 
@@ -296,6 +310,12 @@ class BrowsingViewController: UIViewController, TabDelegate {
 		if currentTab?.needsRefresh ?? false {
 			currentTab?.refresh()
 		}
+	}
+
+	override func viewDidLayoutSubviews() {
+		super.viewDidLayoutSubviews()
+
+		layoutStartPlus()
 	}
 
 	override func viewWillDisappear(_ animated: Bool) {
@@ -790,33 +810,83 @@ class BrowsingViewController: UIViewController, TabDelegate {
 	}
 
 	/**
-	The start page has a search field. It lives here (not in the web page), so it can use the
-	real address bar and with it the search engine from the settings.
+	The start page has a search field and a "+" button. They live here (not in the web page), so the
+	search field can use the real address bar and with it the search engine from the settings.
+
+	The old page stays on the screen while a new one loads, so the field must stay as well,
+	until the new page has really arrived.
 	*/
 	func updateStartOverlay() {
-		guard floating, let container = container else {
+		guard floating else {
 			return
 		}
 
-		let inOverview = !(tabsCollection?.isHidden ?? true)
-		let onStartPage = currentTab?.url == URL.start
-		let loading = currentTab?.isLoading ?? false
-
-		// After a search the address changes at once, but the start page stays on the screen
-		// until the new page arrives. The field stays as long as the page is loading.
-		let visible = !inOverview && (onStartPage || (loading && startSearchWasVisible))
-
-		if !inOverview {
-			startSearchWasVisible = visible
-		}
-
-		guard visible else {
-			startSearch?.isHidden = true
+		// Never over the tab overview.
+		if !(tabsCollection?.isHidden ?? true) {
+			setStartOverlayVisible(false)
 
 			return
 		}
 
-		if startSearch == nil {
+		let tab = currentTab
+		let tabId = tab.map { ObjectIdentifier($0) }
+		let loading = tab?.isLoading ?? false
+		let done = (tab?.progress ?? 1) >= 1
+
+		var visible = false
+
+		if tab?.url == URL.start {
+			startOwner = tabId
+			startLeftAt = nil
+			startSawLoading = false
+
+			visible = true
+		}
+		else if let owner = startOwner, owner == tabId {
+			// The user has just left the start page in this tab.
+			if startLeftAt == nil {
+				startLeftAt = Date()
+				startSawLoading = false
+
+				// Nobody may tell us, that the page is there. So look again later.
+				DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+					self?.updateStartOverlay()
+				}
+			}
+
+			if loading {
+				startSawLoading = true
+			}
+
+			let waited = Date().timeIntervalSince(startLeftAt ?? Date())
+			let arrived = !loading && done && (startSawLoading || waited > 4)
+
+			if arrived || waited > 90 {
+				startOwner = nil
+				startLeftAt = nil
+			}
+			else {
+				visible = true
+			}
+		}
+		else {
+			// Another tab.
+			startOwner = nil
+			startLeftAt = nil
+		}
+
+		setStartOverlayVisible(visible)
+	}
+
+
+	// MARK: Private Methods
+
+	private func setStartOverlayVisible(_ visible: Bool) {
+		guard let container = container else {
+			return
+		}
+
+		if visible && startSearch == nil {
 			let overlay = StartSearchView()
 			overlay.translatesAutoresizingMaskIntoConstraints = false
 			overlay.onSubmit = { [weak self] text in
@@ -834,14 +904,91 @@ class BrowsingViewController: UIViewController, TabDelegate {
 			])
 
 			startSearch = overlay
+
+			// The tile itself is drawn by the start page. This invisible button lies over it.
+			let plus = UIControl()
+			plus.isAccessibilityElement = true
+			plus.accessibilityTraits = .button
+			plus.accessibilityLabel = CibulaL10n.tr("Add favorite", "Добавить в избранное", "Додати в обране")
+			plus.addAction(UIAction { [weak self] _ in
+				self?.addFavorite()
+			}, for: .touchUpInside)
+
+			view.insertSubview(plus, aboveSubview: container)
+
+			startPlus = plus
 		}
 
-		startSearch?.refresh()
-		startSearch?.isHidden = false
+		startSearch?.isHidden = !visible
+		startPlus?.isHidden = !visible || Settings.disableBookmarksOnStartPage
+
+		if visible {
+			startSearch?.refresh()
+			layoutStartPlus()
+		}
 	}
 
+	/**
+	The "+" tile is the 8th place of the favorites (second row, fourth column).
+	The measures are the ones of the start page: 16 points side margin, 4 columns with 4 points gap,
+	favorites start 228 points below the top of the page, rows are 82 points high with 20 points gap.
+	The button is bigger than the tile, so a small deviation doesn't matter.
+	*/
+	private func layoutStartPlus() {
+		guard let plus = startPlus else {
+			return
+		}
 
-	// MARK: Private Methods
+		let width = view.bounds.width
+		let column = (width - 32 - 12) / 4
+		let centerX = 16 + 3 * (column + 4) + column / 2
+		let top = view.safeAreaInsets.top + 228 + 82 + 20
+
+		plus.frame = CGRect(x: centerX - 40, y: top - 8, width: 80, height: 100)
+	}
+
+	/// "+" on the start page: opens the bookmarks with the page for a new bookmark on top.
+	private func addFavorite() {
+		unfocusSearchField()
+
+		AppDelegate.shared?.dismissModals(of: BookmarksViewController.self)
+
+		let bookmarks = BookmarksViewController.instantiate()
+		bookmarks.overrideUserInterfaceStyle = .dark
+
+		// "Save" goes back to the list of bookmarks.
+		if let navC = bookmarks as? UINavigationController {
+			let add = BookmarkViewController()
+			add.insertAtTop = true
+
+			navC.pushViewController(add, animated: false)
+		}
+
+		present(bookmarks, bookmarksBt)
+	}
+
+	/// Rebuilds the start page after a change of the bookmarks and reloads it where it is showing.
+	private func refreshStartPages() {
+		if startRefreshScheduled {
+			return
+		}
+
+		startRefreshScheduled = true
+
+		DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+			guard let self = self else {
+				return
+			}
+
+			self.startRefreshScheduled = false
+
+			NcBookmarks.updateStartPage(force: true)
+
+			for tab in self.tabs where tab.url == URL.start {
+				tab.refresh()
+			}
+		}
+	}
 
 	/**
 	Covers everything with the dark purple of the launch screen, so the parts of the interface
