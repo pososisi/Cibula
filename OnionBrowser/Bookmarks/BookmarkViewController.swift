@@ -17,6 +17,9 @@ class BookmarkViewController: FixedFormViewController {
 	var folder: NcFolder = NcBookmarks.root
 	var delegate: BookmarksViewControllerDelegate?
 
+	/// A new bookmark goes to the top of the list (the "+" on the start page), so it is shown there at once.
+	var insertAtTop = false
+
 	private var bookmark: NcBookmark?
 
 	private var sceneGoneStoreImmediately = false
@@ -141,7 +144,13 @@ class BookmarkViewController: FixedFormViewController {
 		if let url = cleanUrl() {
 			bookmark = NcBookmark(url: url.absoluteString, title: titleRow.value ?? "", folder: folder)
 
-			folder.bookmarks.append(bookmark!)
+			if insertAtTop {
+				folder.bookmarks.insert(bookmark!, at: 0)
+			}
+			else {
+				folder.bookmarks.append(bookmark!)
+			}
+
 			// Trigger store in #viewWillDisappear by setting index != nil.
 			index = folder.bookmarks.firstIndex(of: bookmark!)
 
