@@ -25,7 +25,7 @@
 
 Актуальну готову версію Cibula можна завантажити в нашому Telegram-каналі.
 
-[![Завантажити в Telegram](https://img.shields.io/badge/Telegram-Завантажити%20останню%20версію-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](TELEGRAM_LINK)
+[![Завантажити в Telegram](https://img.shields.io/badge/Telegram-Завантажити%20останню%20версію-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/CibulaOnionBrowser)
 
 Cibula немає в App Store. Збірки — це файли `.ipa`. iOS не встановлює непідписані застосунки, тому, якщо в дописі каналу не сказано, що збірка вже підписана, спочатку підпишіть її власним сертифікатом розробника Apple (див. [Встановлення](#встановлення)).
 
