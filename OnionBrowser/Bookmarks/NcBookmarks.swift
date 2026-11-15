@@ -8,6 +8,12 @@
 
 import UIKit
 
+extension Notification.Name {
+
+	/// Posted, whenever the bookmarks were stored. The start page shows them, so it must be rebuilt.
+	static let cibulaBookmarksChanged = Notification.Name("CibulaBookmarksChanged")
+}
+
 class NcBookmarks {
 
 	static var rootDir = FileManager.default.docsDir
@@ -136,6 +142,8 @@ class NcBookmarks {
 		catch {
 			Log.error(for: Self.self, "\(error)")
 		}
+
+		NotificationCenter.default.post(name: .cibulaBookmarksChanged, object: nil)
 	}
 
 	class func updateStartPage(force: Bool = false) {
@@ -172,7 +180,7 @@ class NcBookmarks {
 
 			let bookmarks = root.bookmarks
 
-			// Render bookmarks. The start page has room for 7 of them.
+			// Render bookmarks. The start page has room for 7 of them (and the "+" tile).
 			for i in 0 ... 6 {
 				let url: String
 				let name: String
@@ -184,14 +192,14 @@ class NcBookmarks {
 					url = tempUrl
 
 					name = bookmarks[i].title.isEmpty ? URL(string: url)?.host ?? "" : bookmarks[i].title
-					icon = bookmarks[i].icon ?? letterIcon(name)
+					icon = tileIcon(bookmarks[i].icon, name)
 				}
 				else {
 					if i < defaultBookmarks.count {
 						// Make sure that the default bookmarks are available!
 						url = defaultBookmarks[i].url
 						name = defaultBookmarks[i].title.isEmpty ? URL(string: url)?.host ?? "" : defaultBookmarks[i].title
-						icon = defaultBookmarks[i].icon ?? letterIcon(name)
+						icon = tileIcon(defaultBookmarks[i].icon, name)
 					}
 					else {
 						url = ""
@@ -286,6 +294,7 @@ class NcBookmarks {
 	/**
 	Puts the favorites of Cibula to the top of the list and removes the ones Onion Browser came with.
 	Bookmarks the user added himself stay. Happens only once.
+	No icons are downloaded here, the start page draws colored letters for bookmarks without an icon.
 	*/
 	class func migrateToCibulaDefaults() {
 		let defaults = UserDefaults.standard
@@ -319,17 +328,6 @@ class NcBookmarks {
 		store()
 
 		Settings.bookmarkFirstRunDone = true
-
-		// Icons of the new bookmarks. Without one the start page draws a colored letter.
-		Task {
-			await recurse(root) { bookmark in
-				if bookmark.icon == nil, await bookmark.acquireIcon() {
-					store()
-				}
-
-				return false
-			}
-		}
 	}
 
 	class func find(_ lambda: (_ bookmark: NcBookmark) -> Bool) -> [NcBookmark] {
@@ -347,7 +345,16 @@ class NcBookmarks {
 
 	// MARK: Private Methods
 
-	/// A colored square with the first letter of the name, for bookmarks without an icon.
+	/// The icon of a bookmark for the start page. Tiny icons look blurry when enlarged, they get a colored letter instead.
+	private class func tileIcon(_ icon: UIImage?, _ name: String) -> UIImage {
+		if let icon, icon.size.width * icon.scale >= 64 {
+			return icon
+		}
+
+		return letterIcon(name)
+	}
+
+	/// A colored square with the first letter of the name, for bookmarks without a good icon.
 	private class func letterIcon(_ name: String) -> UIImage {
 		let palette: [(UInt32, UInt32)] = [
 			(0x35D07F, 0x1B8F52),
@@ -379,13 +386,20 @@ class NcBookmarks {
 		return UIGraphicsImageRenderer(size: size, format: format).image { context in
 			let cg = context.cgContext
 
+			// The whole square must be painted, also beyond the start and end of the gradient.
+			color(colors.1).setFill()
+			cg.fill(CGRect(origin: .zero, size: size))
+
 			let gradient = CGGradient(
 				colorsSpace: CGColorSpaceCreateDeviceRGB(),
 				colors: [color(colors.0).cgColor, color(colors.1).cgColor] as CFArray,
 				locations: [0, 1])
 
 			if let gradient {
-				cg.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: size.width * 0.4, y: size.height), options: [])
+				cg.drawLinearGradient(gradient,
+									  start: CGPoint(x: 0, y: 0),
+									  end: CGPoint(x: size.width * 0.4, y: size.height),
+									  options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
 			}
 
 			let attributes: [NSAttributedString.Key: Any] = [
