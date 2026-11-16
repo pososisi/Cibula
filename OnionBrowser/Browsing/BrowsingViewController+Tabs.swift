@@ -259,17 +259,19 @@ UICollectionViewDropDelegate, TabCellDelegate {
 
 	/// The title of a tab. The start page and empty tabs have none, so we make one up.
 	private func displayName(for tab: Tab) -> String {
+		if tab.url == URL.start {
+			return CibulaL10n.tr("Home", "Главный экран", "Головний екран")
+		}
+
 		let raw = (tab.title as String?)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
 		if !raw.isEmpty {
 			return raw
 		}
 
-		if tab.url == URL.start {
-			return "Cibula"
-		}
-
 		return tab.url.host ?? ""
+	}
+
 	}
 
 	/// A dark card with a globe and the address, for tabs we have no picture of.
