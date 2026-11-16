@@ -21,6 +21,18 @@ workflows:
           find . -type f \( -name "*.swift" -o -name "*.m" -o -name "*.h" -o -name "*.strings" -o -name "*.stringsdict" -o -name "*.plist" -o -name "*.html" \) \
             -not -path "./.git/*" -not -path "./build/*" -not -path "*.xcodeproj/*" -print0 \
             | xargs -0 perl -pi -e 's/Onion Browser/Cibula/g; s/ONION BROWSER/CIBULA/g'
+      - name: Set bundle ID
+        script: |
+          NEW="onion.browser.cibula"
+          for OLD in "com.miketigas.OnionBrowser" "com.pososisi.cibula"; do
+            grep -rIl "$OLD" . --include=project.pbxproj --include=*.xcconfig --include=*.plist --include=*.entitlements --include=*.swift --include=*.m --include=*.h 2>/dev/null \
+              | grep -v "^./Pods/" | grep -v "^./build/" | grep -v "^./.git/" \
+              | while IFS= read -r f; do
+                  perl -pi -e "s/\Q$OLD\E/$NEW/g" "$f"
+                  echo "Bundle ID changed in $f"
+                done
+          done
+          grep -n "PRODUCT_BUNDLE_IDENTIFIER" Config.xcconfig || true
       - name: List launch files
         script: |
           find . -iname "*launch*" -not -path "./Pods/*" -not -path "./build/*" -not -path "./.git/*" | head -n 20
